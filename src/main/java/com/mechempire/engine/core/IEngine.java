@@ -1,4 +1,4 @@
-package com.mechempire.engine.core.message;
+package com.mechempire.engine.core;
 
 /**
  * package: com.mechempire.engine.core.message
@@ -14,7 +14,7 @@ public interface IEngine {
     void init();
 
     /**
-     * run engine
+     * run engine.
      */
     void run();
 }
