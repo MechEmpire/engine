@@ -25,22 +25,22 @@ public class MechEmpireEngine implements IEngine {
     /**
      * 红方指令消息队列生产者
      */
-    private IProducer redCommandMessageProducer;
+    private final IProducer redCommandMessageProducer = new LocalCommandMessageProducer();
 
     /**
      * 蓝方指令消息队列生产者
      */
-    private IProducer blueCommandMessageProducer;
+    private final IProducer blueCommandMessageProducer = new LocalCommandMessageProducer();
 
     /**
      * 红方指令消息队列消费者
      */
-    private IConsumer redCommandMessageConsumer;
+    private final IConsumer redCommandMessageConsumer = new LocalCommandMessageConsumer();
 
     /**
      * 蓝方指令消息队列消费者
      */
-    private IConsumer blueCommandMessageConsumer;
+    private final IConsumer blueCommandMessageConsumer = new LocalCommandMessageConsumer();
 
     /**
      * 线程屏障
@@ -55,64 +55,44 @@ public class MechEmpireEngine implements IEngine {
             new LinkedBlockingQueue<Runnable>(4)
     );
 
-    @Override
-    public void init() {
-        redCommandMessageProducer = new LocalCommandMessageProducer();
-        BlockingQueue<AbstractMessage> redQueue = new LinkedBlockingQueue<>(20);
-        redCommandMessageProducer.setQueue(redQueue);
-
-        blueCommandMessageProducer = new LocalCommandMessageProducer();
-        BlockingQueue<AbstractMessage> blueQueue = new LinkedBlockingQueue<>(20);
-        blueCommandMessageProducer.setQueue(blueQueue);
-
-        redCommandMessageConsumer = new LocalCommandMessageConsumer();
-        redCommandMessageConsumer.setQueue(redQueue);
-
-        blueCommandMessageConsumer = new LocalCommandMessageConsumer();
-        blueCommandMessageConsumer.setQueue(blueQueue);
-    }
-
     /**
      * 引擎启动方法
-     * <p>
-     * 1. load agent.jar
-     * 2. create two agent thread
-     * 3. print CommandMessage
-     * 4. send to MessageBus
      */
     @Override
     public void run() {
         try {
-            AbstractTeam redTeam = TeamFactory.newTeam("agent_red.jar");
-            AbstractTeam blueTeam = TeamFactory.newTeam("agent_blue.jar");
-            IMechControlFlow redControlFlow = MechControlFactory.getTeamControl("agent_red.jar");
-            IMechControlFlow blueControlFlow = MechControlFactory.getTeamControl("agent_blue.jar");
-
-            threadPool.execute(() -> {
-                try {
-                    barrier.await();
-                    redControlFlow.run(redCommandMessageProducer, redTeam);
-                } catch (InterruptedException | BrokenBarrierException e) {
-                    e.printStackTrace();
-                }
-            });
-
-            threadPool.execute(() -> {
-                try {
-                    barrier.await();
-                    blueControlFlow.run(blueCommandMessageProducer, blueTeam);
-                } catch (InterruptedException | BrokenBarrierException e) {
-                    e.printStackTrace();
-                }
-            });
-
-            executeConsumerThread(redCommandMessageConsumer);
-            executeConsumerThread(blueCommandMessageConsumer);
+            injectProducerAndTeam("agent_red.jar", redCommandMessageProducer, redCommandMessageConsumer);
+            injectProducerAndTeam("agent_blue.jar", blueCommandMessageProducer, blueCommandMessageConsumer);
             barrier.await();
-
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 向 agent 注入 team 信息和消息生产者
+     *
+     * @param agentName              agent 名称
+     * @param commandMessageProducer 消息生产者
+     * @param commandMessageConsumer 消息消费者
+     * @throws Exception 异常
+     */
+    private void injectProducerAndTeam(String agentName, IProducer commandMessageProducer, IConsumer commandMessageConsumer) throws Exception {
+        BlockingQueue<AbstractMessage> redQueue = new LinkedBlockingQueue<>(20);
+        commandMessageProducer.setQueue(redQueue);
+        commandMessageConsumer.setQueue(redQueue);
+        AbstractTeam team = TeamFactory.newTeam(agentName);
+        IMechControlFlow controlFlow = MechControlFactory.getTeamControl(agentName);
+
+        threadPool.execute(() -> {
+            try {
+                barrier.await();
+                controlFlow.run(commandMessageProducer, team);
+            } catch (InterruptedException | BrokenBarrierException e) {
+                e.printStackTrace();
+            }
+        });
+        executeConsumerThread(commandMessageConsumer);
     }
 
     /**

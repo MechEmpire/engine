@@ -14,7 +14,6 @@ public class EngineApplication {
 
     public static void main(String[] args) {
         MechEmpireEngine mechEmpireEngine = new MechEmpireEngine();
-        mechEmpireEngine.init();
         mechEmpireEngine.run();
     }
 }
