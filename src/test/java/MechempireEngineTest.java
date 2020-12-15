@@ -10,7 +10,6 @@ public class MechempireEngineTest {
 
     public static void main(String[] args) {
         MechEmpireEngine engine = new MechEmpireEngine();
-        engine.init();
         engine.run();
     }
 }

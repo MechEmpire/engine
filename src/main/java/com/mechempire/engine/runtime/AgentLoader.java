@@ -18,14 +18,9 @@ public class AgentLoader {
     private static final String AGENT_BASE_PATH = "file:/home/tairy/Documents/Working/mechempire/engine/src/main/resources/agents/";
 
     /**
-     * team 类
-     */
-    private static final String AGENT_TEAM_CLASS = "com.mechempire.agent.Team";
-
-    /**
      * 类加载器缓存
      */
-    private static Map<String, URLClassLoader> loaderCache = new HashMap<>(2);
+    private static final Map<String, URLClassLoader> loaderCache = new HashMap<>(2);
 
     /**
      * 加载 jar 包, 并返回类加载器
