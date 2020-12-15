@@ -1,9 +1,9 @@
 package com.mechempire.engine.runtime;
 
-import com.mechempire.sdk.core.game.IMechControlFlow;
-
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * package: com.mechempire.engine.runtime
@@ -12,29 +12,35 @@ import java.net.URLClassLoader;
  * @date 2020/12/14 下午4:32
  */
 public class AgentLoader {
-
     /**
      * agent 文件目录
      */
     private static final String AGENT_BASE_PATH = "file:/home/tairy/Documents/Working/mechempire/engine/src/main/resources/agents/";
 
     /**
-     * agent 主类
+     * team 类
      */
-    private static final String AGENT_MAIN_CLASS = "com.mechempire.agent.AgentMain";
+    private static final String AGENT_TEAM_CLASS = "com.mechempire.agent.Team";
 
     /**
-     * 获取 agent 对象
+     * 类加载器缓存
+     */
+    private static Map<String, URLClassLoader> loaderCache = new HashMap<>(2);
+
+    /**
+     * 加载 jar 包, 并返回类加载器
      *
-     * @param agentName agent 名称
-     * @return agent 对象
+     * @param agentName jar 包名称
+     * @return 类加载器
      * @throws Exception 异常
      */
-    public static IMechControlFlow getAgentObject(String agentName) throws Exception {
-        URL agentFileURL = new URL(AGENT_BASE_PATH + agentName);
-        URLClassLoader agentClassLoader =
-                new URLClassLoader(new URL[]{agentFileURL}, Thread.currentThread().getContextClassLoader());
-        Class<?> agentMainClass = agentClassLoader.loadClass(AGENT_MAIN_CLASS);
-        return (IMechControlFlow) agentMainClass.newInstance();
+    public static URLClassLoader getAgentClassLoader(String agentName) throws Exception {
+        URLClassLoader classLoader = loaderCache.get(agentName);
+        if (null == classLoader) {
+            URL agentFileURL = new URL(AGENT_BASE_PATH + agentName);
+            classLoader = new URLClassLoader(new URL[]{agentFileURL}, Thread.currentThread().getContextClassLoader());
+            loaderCache.put(agentName, classLoader);
+        }
+        return classLoader;
     }
 }

@@ -1,7 +1,7 @@
 package com.mechempire.engine.runtime;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.mechempire.engine.core.IEngine;
+import com.mechempire.sdk.core.game.AbstractTeam;
 import com.mechempire.sdk.core.game.IMechControlFlow;
 import com.mechempire.sdk.core.message.AbstractMessage;
 import com.mechempire.sdk.core.message.IConsumer;
@@ -9,6 +9,7 @@ import com.mechempire.sdk.core.message.IProducer;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 
+import java.util.Arrays;
 import java.util.concurrent.*;
 
 /**
@@ -22,23 +23,53 @@ import java.util.concurrent.*;
 public class MechEmpireEngine implements IEngine {
 
     /**
-     * 指令消息队列生产者
+     * 红方指令消息队列生产者
      */
-    private IProducer commandMessageProducer;
+    private IProducer redCommandMessageProducer;
 
     /**
-     * 指令消息队列消费者
+     * 蓝方指令消息队列生产者
      */
-    private IConsumer commandMessageConsumer;
+    private IProducer blueCommandMessageProducer;
+
+    /**
+     * 红方指令消息队列消费者
+     */
+    private IConsumer redCommandMessageConsumer;
+
+    /**
+     * 蓝方指令消息队列消费者
+     */
+    private IConsumer blueCommandMessageConsumer;
+
+    /**
+     * 线程屏障
+     */
+    private final CyclicBarrier barrier = new CyclicBarrier(5);
+
+    /**
+     * 线程池
+     */
+    private final ExecutorService threadPool = new ThreadPoolExecutor(4, 4,
+            0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<Runnable>(4)
+    );
 
     @Override
     public void init() {
-        commandMessageProducer = new LocalCommandMessageProducer();
-        BlockingQueue<AbstractMessage> queue = new LinkedBlockingQueue<>(20);
+        redCommandMessageProducer = new LocalCommandMessageProducer();
+        BlockingQueue<AbstractMessage> redQueue = new LinkedBlockingQueue<>(20);
+        redCommandMessageProducer.setQueue(redQueue);
 
-        commandMessageProducer.setQueue(queue);
-        commandMessageConsumer = new LocalCommandMessageConsumer();
-        commandMessageConsumer.setQueue(queue);
+        blueCommandMessageProducer = new LocalCommandMessageProducer();
+        BlockingQueue<AbstractMessage> blueQueue = new LinkedBlockingQueue<>(20);
+        blueCommandMessageProducer.setQueue(blueQueue);
+
+        redCommandMessageConsumer = new LocalCommandMessageConsumer();
+        redCommandMessageConsumer.setQueue(redQueue);
+
+        blueCommandMessageConsumer = new LocalCommandMessageConsumer();
+        blueCommandMessageConsumer.setQueue(blueQueue);
     }
 
     /**
@@ -52,49 +83,58 @@ public class MechEmpireEngine implements IEngine {
     @Override
     public void run() {
         try {
-            CyclicBarrier barrier = new CyclicBarrier(3);
-            ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("agent-thread-%d").build();
-            ExecutorService threadPool = new ThreadPoolExecutor(2, 2,
-                    0L, TimeUnit.MILLISECONDS,
-                    new LinkedBlockingQueue<Runnable>(2),
-                    threadFactory
-            );
+            AbstractTeam redTeam = TeamFactory.newTeam("agent_red.jar");
+            AbstractTeam blueTeam = TeamFactory.newTeam("agent_blue.jar");
+            IMechControlFlow redControlFlow = MechControlFactory.getTeamControl("agent_red.jar");
+            IMechControlFlow blueControlFlow = MechControlFactory.getTeamControl("agent_blue.jar");
 
-            IMechControlFlow redAgentMain = AgentLoader.getAgentObject("agent_red.jar");
             threadPool.execute(() -> {
                 try {
                     barrier.await();
-                    redAgentMain.run(commandMessageProducer);
+                    redControlFlow.run(redCommandMessageProducer, redTeam);
                 } catch (InterruptedException | BrokenBarrierException e) {
                     e.printStackTrace();
                 }
             });
 
-            IMechControlFlow blueAgentMain = AgentLoader.getAgentObject("agent_blue.jar");
             threadPool.execute(() -> {
                 try {
                     barrier.await();
-                    blueAgentMain.run(commandMessageProducer);
+                    blueControlFlow.run(blueCommandMessageProducer, blueTeam);
                 } catch (InterruptedException | BrokenBarrierException e) {
                     e.printStackTrace();
                 }
             });
+
+            executeConsumerThread(redCommandMessageConsumer);
+            executeConsumerThread(blueCommandMessageConsumer);
             barrier.await();
-//            CommandMessage commandMessage = new CommandMessage();
-//            CommandProduct commandProduct = new CommandProduct();
-//            commandProduct.product(commandMessage);
 
-            Thread consumeThread = new Thread(() -> {
-                while (true) {
-                    CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
-                    if (null != commandMessage) {
-                        System.out.println(commandMessage.getTeamId());
-                    }
-                }
-            });
-            consumeThread.start();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 启动命令消费线程
+     *
+     * @param commandMessageConsumer 消费者
+     */
+    private void executeConsumerThread(IConsumer commandMessageConsumer) {
+        threadPool.execute(() -> {
+            try {
+                barrier.await();
+                while (true) {
+                    CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
+                    if (null != commandMessage) {
+                        System.out.printf("%s, team_id: %d \n", Thread.currentThread().getName(), commandMessage.getTeamId());
+                        byte[] command = commandMessage.getCommandSeq();
+                        System.out.println(Arrays.toString(command));
+                    }
+                }
+            } catch (InterruptedException | BrokenBarrierException e) {
+                e.printStackTrace();
+            }
+        });
     }
 }
