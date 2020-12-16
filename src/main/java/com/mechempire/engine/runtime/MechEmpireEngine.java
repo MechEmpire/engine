@@ -1,6 +1,9 @@
 package com.mechempire.engine.runtime;
 
+import com.mechempire.engine.core.IBattleControl;
 import com.mechempire.engine.core.IEngine;
+import com.mechempire.engine.core.RuntimeConstant;
+import com.mechempire.sdk.core.game.AbstractGameMapComponent;
 import com.mechempire.sdk.core.game.AbstractTeam;
 import com.mechempire.sdk.core.game.IMechControlFlow;
 import com.mechempire.sdk.core.message.AbstractMessage;
@@ -9,7 +12,8 @@ import com.mechempire.sdk.core.message.IProducer;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
 
 /**
@@ -33,24 +37,34 @@ public class MechEmpireEngine implements IEngine {
     private final IProducer blueCommandMessageProducer = new LocalCommandMessageProducer();
 
     /**
-     * 红方指令消息队列消费者
+     * 指令消息队列消费者
      */
-    private final IConsumer redCommandMessageConsumer = new LocalCommandMessageConsumer();
+    private final IConsumer commandMessageConsumer = new LocalCommandMessageConsumer();
 
     /**
-     * 蓝方指令消息队列消费者
+     * 指令消息队列
      */
-    private final IConsumer blueCommandMessageConsumer = new LocalCommandMessageConsumer();
+    private final BlockingQueue<AbstractMessage> commandMessageQueue = new LinkedBlockingQueue<>(20);
+
+    /**
+     * 对战计算控制对象
+     */
+    private final IBattleControl battleControl = new OneMechBattleControl();
 
     /**
      * 线程屏障
      */
-    private final CyclicBarrier barrier = new CyclicBarrier(5);
+    private final CyclicBarrier barrier = new CyclicBarrier(4);
+
+    /**
+     * 世界, 对战运行时数据记录
+     */
+    private final EngineWorld engineWorld = new EngineWorld();
 
     /**
      * 线程池
      */
-    private final ExecutorService threadPool = new ThreadPoolExecutor(4, 4,
+    private final ExecutorService threadPool = new ThreadPoolExecutor(3, 3,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<Runnable>(4)
     );
@@ -61,8 +75,10 @@ public class MechEmpireEngine implements IEngine {
     @Override
     public void run() {
         try {
-            injectProducerAndTeam("agent_red.jar", redCommandMessageProducer, redCommandMessageConsumer);
-            injectProducerAndTeam("agent_blue.jar", blueCommandMessageProducer, blueCommandMessageConsumer);
+            injectProducerAndTeam("agent_red.jar", redCommandMessageProducer);
+            injectProducerAndTeam("agent_blue.jar", blueCommandMessageProducer);
+            commandMessageConsumer.setQueue(commandMessageQueue);
+            executeConsumerThread(commandMessageConsumer);
             barrier.await();
         } catch (Exception e) {
             e.printStackTrace();
@@ -74,16 +90,17 @@ public class MechEmpireEngine implements IEngine {
      *
      * @param agentName              agent 名称
      * @param commandMessageProducer 消息生产者
-     * @param commandMessageConsumer 消息消费者
      * @throws Exception 异常
      */
-    private void injectProducerAndTeam(String agentName, IProducer commandMessageProducer, IConsumer commandMessageConsumer) throws Exception {
-        BlockingQueue<AbstractMessage> redQueue = new LinkedBlockingQueue<>(20);
-        commandMessageProducer.setQueue(redQueue);
-        commandMessageConsumer.setQueue(redQueue);
+    private void injectProducerAndTeam(String agentName, IProducer commandMessageProducer) throws Exception {
+        commandMessageProducer.setQueue(commandMessageQueue);
         AbstractTeam team = TeamFactory.newTeam(agentName);
-        IMechControlFlow controlFlow = MechControlFactory.getTeamControl(agentName);
 
+        for (AbstractGameMapComponent component : team.getMechList()) {
+            engineWorld.putComponent(component.getId(), component);
+        }
+
+        IMechControlFlow controlFlow = MechControlFactory.getTeamControl(agentName);
         threadPool.execute(() -> {
             try {
                 barrier.await();
@@ -92,7 +109,6 @@ public class MechEmpireEngine implements IEngine {
                 e.printStackTrace();
             }
         });
-        executeConsumerThread(commandMessageConsumer);
     }
 
     /**
@@ -104,12 +120,19 @@ public class MechEmpireEngine implements IEngine {
         threadPool.execute(() -> {
             try {
                 barrier.await();
+                List<CommandMessage> messagesPerFrame = new ArrayList<>(40);
+                long startTime = System.currentTimeMillis();
+
                 while (true) {
                     CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
                     if (null != commandMessage) {
-                        System.out.printf("%s, team_id: %d \n", Thread.currentThread().getName(), commandMessage.getTeamId());
-                        byte[] command = commandMessage.getCommandSeq();
-                        System.out.println(Arrays.toString(command));
+                        messagesPerFrame.add(commandMessage);
+                    }
+
+                    // each frame
+                    if (0 == (System.currentTimeMillis() - startTime) % RuntimeConstant.FRAME_GAP) {
+                        battleControl.battle(messagesPerFrame);
+                        messagesPerFrame.clear();
                     }
                 }
             } catch (InterruptedException | BrokenBarrierException e) {

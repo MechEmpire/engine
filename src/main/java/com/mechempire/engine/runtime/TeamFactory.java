@@ -1,8 +1,10 @@
 package com.mechempire.engine.runtime;
 
+import com.mechempire.sdk.core.factory.GameMapComponentFactory;
 import com.mechempire.sdk.core.factory.MechFactory;
 import com.mechempire.sdk.core.game.AbstractMech;
 import com.mechempire.sdk.core.game.AbstractTeam;
+import com.mechempire.sdk.util.ClassCastUtil;
 
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -32,11 +34,11 @@ public class TeamFactory {
      */
     public static AbstractTeam newTeam(String agentName) throws Exception {
         URLClassLoader classLoader = AgentLoader.getAgentClassLoader(agentName);
-        Class<?> agentTeam = classLoader.loadClass(AGENT_TEAM_CLASS);
-        AbstractTeam team = (AbstractTeam) agentTeam.newInstance();
+        Class<AbstractTeam> agentTeam = ClassCastUtil.cast(classLoader.loadClass(AGENT_TEAM_CLASS));
+        AbstractTeam team = agentTeam.newInstance();
         List<AbstractMech> mechList = new ArrayList<>(4);
-        for (Class<?> clazz : team.getMechClassList()) {
-            AbstractMech mech = (AbstractMech) clazz.newInstance();
+        for (Class<AbstractMech> clazz : team.getMechClassList()) {
+            AbstractMech mech = (AbstractMech) GameMapComponentFactory.getComponent(clazz);
             MechFactory.assemblyMech(mech);
             mechList.add(mech);
         }

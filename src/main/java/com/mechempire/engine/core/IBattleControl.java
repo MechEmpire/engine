@@ -1,7 +1,8 @@
 package com.mechempire.engine.core;
 
 import com.mechempire.sdk.runtime.CommandMessage;
-import com.mechempire.sdk.runtime.ResultMessage;
+
+import java.util.List;
 
 /**
  * package: com.mechempire.engine.core
@@ -9,13 +10,12 @@ import com.mechempire.sdk.runtime.ResultMessage;
  * @author <tairy> tairyguo@gmail.com
  * @date 2020/12/15 下午9:54
  */
-public interface IBattle {
+public interface IBattleControl {
 
     /**
      * 对战接口
      *
-     * @param commandMessage 指令帧
-     * @return 结果帧
+     * @param commandMessageList 指令帧列表
      */
-    ResultMessage battle(CommandMessage commandMessage);
+    void battle(List<CommandMessage> commandMessageList);
 }
