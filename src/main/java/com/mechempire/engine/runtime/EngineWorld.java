@@ -14,6 +14,9 @@ import java.util.Map;
  */
 public class EngineWorld extends AbstractWorld {
 
+    /**
+     * 地图组件列表
+     */
     private final Map<Integer, AbstractGameMapComponent> components = new HashMap<>(16);
 
     /**

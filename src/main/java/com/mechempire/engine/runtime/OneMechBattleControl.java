@@ -21,6 +21,8 @@ public class OneMechBattleControl implements IBattleControl {
         for (CommandMessage commandMessage : commandMessageList) {
             System.out.printf("%s, team_id: %d \n", Thread.currentThread().getName(), commandMessage.getTeamId());
             byte[] command = commandMessage.getCommandSeq();
+            CommandMessageReader reader = new CommandMessageReader(command);
+            System.out.printf("command: %x, object_id: %d, x:%.2f, y:%.2f\n", reader.readByte(), reader.readInt(), reader.readDouble(), reader.readDouble());
             System.out.println(Arrays.toString(command));
         }
     }
