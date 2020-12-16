@@ -4,6 +4,7 @@ import com.mechempire.engine.core.IBattleControl;
 import com.mechempire.engine.core.IEngine;
 import com.mechempire.engine.core.RuntimeConstant;
 import com.mechempire.sdk.core.game.AbstractGameMapComponent;
+import com.mechempire.sdk.core.game.AbstractMech;
 import com.mechempire.sdk.core.game.AbstractTeam;
 import com.mechempire.sdk.core.game.IMechControlFlow;
 import com.mechempire.sdk.core.message.AbstractMessage;
@@ -12,6 +13,7 @@ import com.mechempire.sdk.core.message.IProducer;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 
+import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -49,7 +51,8 @@ public class MechEmpireEngine implements IEngine {
     /**
      * 对战计算控制对象
      */
-    private final IBattleControl battleControl = new OneMechBattleControl();
+    @Resource
+    private IBattleControl battleControl;
 
     /**
      * 线程屏障
@@ -59,7 +62,8 @@ public class MechEmpireEngine implements IEngine {
     /**
      * 世界, 对战运行时数据记录
      */
-    private final EngineWorld engineWorld = new EngineWorld();
+    @Resource
+    private EngineWorld engineWorld;
 
     /**
      * 线程池
@@ -97,7 +101,11 @@ public class MechEmpireEngine implements IEngine {
         AbstractTeam team = TeamFactory.newTeam(agentName);
 
         for (AbstractGameMapComponent component : team.getMechList()) {
-            engineWorld.putComponent(component.getId(), component);
+            AbstractMech mech = (AbstractMech) component;
+            engineWorld.putComponent(mech.getId(), mech);
+            engineWorld.putComponent(mech.getAmmunition().getId(), mech.getAmmunition());
+            engineWorld.putComponent(mech.getVehicle().getId(), mech.getVehicle());
+            engineWorld.putComponent(mech.getWeapon().getId(), mech.getWeapon());
         }
 
         IMechControlFlow controlFlow = MechControlFactory.getTeamControl(agentName);
@@ -135,7 +143,7 @@ public class MechEmpireEngine implements IEngine {
                         messagesPerFrame.clear();
                     }
                 }
-            } catch (InterruptedException | BrokenBarrierException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         });

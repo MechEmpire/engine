@@ -17,5 +17,5 @@ public interface IBattleControl {
      *
      * @param commandMessageList 指令帧列表
      */
-    void battle(List<CommandMessage> commandMessageList);
+    void battle(List<CommandMessage> commandMessageList) throws Exception;
 }

@@ -34,4 +34,14 @@ public class EngineWorld extends AbstractWorld {
 
         this.components.put(componentId, component);
     }
+
+    /**
+     * 获取组件对象
+     *
+     * @param componentId 组件 id
+     * @return 组件对象
+     */
+    public AbstractGameMapComponent getComponent(int componentId) {
+        return this.components.get(componentId);
+    }
 }

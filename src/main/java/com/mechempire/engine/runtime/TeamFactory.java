@@ -37,7 +37,7 @@ public class TeamFactory {
         Class<AbstractTeam> agentTeam = ClassCastUtil.cast(classLoader.loadClass(AGENT_TEAM_CLASS));
         AbstractTeam team = agentTeam.newInstance();
         List<AbstractMech> mechList = new ArrayList<>(4);
-        for (Class<AbstractMech> clazz : team.getMechClassList()) {
+        for (Class<?> clazz : team.getMechClassList()) {
             AbstractMech mech = (AbstractMech) GameMapComponentFactory.getComponent(clazz);
             MechFactory.assemblyMech(mech);
             mechList.add(mech);
