@@ -2,11 +2,15 @@ package com.mechempire.engine.runtime;
 
 import com.google.common.collect.ImmutableMap;
 import com.mechempire.engine.core.IBattleControl;
-import com.mechempire.sdk.core.game.AbstractGameMapComponent;
+import com.mechempire.sdk.core.game.AbstractMech;
+import com.mechempire.sdk.core.game.AbstractVehicle;
 import com.mechempire.sdk.runtime.CommandMessage;
+import com.mechempire.sdk.runtime.Position2D;
 import com.mechempire.sdk.runtime.ResultMessage;
+import com.mechempire.sdk.util.ClassCastUtil;
 
 import javax.annotation.Resource;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
@@ -25,13 +29,9 @@ public class OneMechBattleControl implements IBattleControl {
      */
     private final ResultMessage resultMessage = new ResultMessage();
 
-    private Map<Byte, String> commandHandles = ImmutableMap.<Byte, String>builder()
+    private final Map<Byte, String> commandHandles = ImmutableMap.<Byte, String>builder()
             .put((byte) 0, "handleMoveToCommand")
             .build();
-
-//    private Map<Byte, List<Class<?>>> commandHandleParams = ImmutableMap.<Byte, List<Class<?>>>builder()
-//            .put((byte) 0, new ArrayList<Class<?>> {{}})
-//            .build();
 
     /**
      * 世界对象
@@ -45,16 +45,26 @@ public class OneMechBattleControl implements IBattleControl {
             byte[] command = commandMessage.getCommandSeq();
             CommandMessageReader reader = new CommandMessageReader(command);
             byte commandByte = reader.readByte();
-//            Method method = getClass().getDeclaredMethod(commandHandles.get(commandByte), int.class, double.class, double.class);
-//            method.invoke(this, reader.readInt(), reader.readDouble(), reader.readDouble());
-            handleMoveToCommand(reader.readInt(), reader.readDouble(), reader.readDouble());
+            Method method = getClass().getDeclaredMethod(commandHandles.get(commandByte), CommandMessageReader.class);
+            method.invoke(this, reader);
         }
     }
 
-    private void handleMoveToCommand(int componentId, double x, double y) {
-        AbstractGameMapComponent component = engineWorld.getComponent(componentId);
-        if (null != component) {
-            System.out.printf("hh %d\n", component.getId());
+    private void handleMoveToCommand(CommandMessageReader reader) {
+        AbstractVehicle vehicle = (AbstractVehicle) engineWorld.getComponent(reader.readInt());
+        if (null != vehicle) {
+            AbstractMech mech = vehicle.getMech();
+            System.out.printf("startX: %.2f, startY: %.2f\n", mech.getStartX(), mech.getStartY());
+            Position2D position = ClassCastUtil.cast(vehicle.getPosition());
+
+//            System.out.printf("positionX: %.2f, positionY: %.2f\n", position.getX(), position.getY());
+
+//            System.out.println((mech.getVehicleClazz().cast(mech.getVehicle())).getClass().getName());
+
+//            mech.getVehicleClazz().cast(mech.getVehicle());
+//            System.out.println(vehicle.getMech().getVehicleClazz());
+//            System.out.printf("speed: %.2f\n", vehicle.getMech().getVehicle().getSpeed());
+            System.out.printf("speed: %.2f\n", vehicle.getSpeed());
         }
     }
 }

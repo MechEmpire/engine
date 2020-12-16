@@ -4,6 +4,7 @@ import com.mechempire.sdk.core.factory.GameMapComponentFactory;
 import com.mechempire.sdk.core.factory.MechFactory;
 import com.mechempire.sdk.core.game.AbstractMech;
 import com.mechempire.sdk.core.game.AbstractTeam;
+import com.mechempire.sdk.runtime.Position2D;
 import com.mechempire.sdk.util.ClassCastUtil;
 
 import java.net.URLClassLoader;
@@ -38,8 +39,11 @@ public class TeamFactory {
         AbstractTeam team = agentTeam.newInstance();
         List<AbstractMech> mechList = new ArrayList<>(4);
         for (Class<?> clazz : team.getMechClassList()) {
-            AbstractMech mech = (AbstractMech) GameMapComponentFactory.getComponent(clazz);
+            AbstractMech mech = ClassCastUtil.cast(GameMapComponentFactory.getComponent(clazz));
             MechFactory.assemblyMech(mech);
+            mech.setStartX(2.0);
+            mech.setStartY(2.0);
+            mech.setPosition(new Position2D(2.0, 2.0, 5.0, 5.0));
             mechList.add(mech);
         }
         team.setMechList(mechList);

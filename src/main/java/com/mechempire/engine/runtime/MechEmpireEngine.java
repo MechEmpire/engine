@@ -12,6 +12,7 @@ import com.mechempire.sdk.core.message.IConsumer;
 import com.mechempire.sdk.core.message.IProducer;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
+import com.mechempire.sdk.util.ClassCastUtil;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -101,7 +102,7 @@ public class MechEmpireEngine implements IEngine {
         AbstractTeam team = TeamFactory.newTeam(agentName);
 
         for (AbstractGameMapComponent component : team.getMechList()) {
-            AbstractMech mech = (AbstractMech) component;
+            AbstractMech mech = ClassCastUtil.cast(component);
             engineWorld.putComponent(mech.getId(), mech);
             engineWorld.putComponent(mech.getAmmunition().getId(), mech.getAmmunition());
             engineWorld.putComponent(mech.getVehicle().getId(), mech.getVehicle());
