@@ -3,11 +3,11 @@ package com.mechempire.engine.runtime;
 import com.google.common.collect.ImmutableMap;
 import com.mechempire.engine.core.IBattleControl;
 import com.mechempire.sdk.core.game.AbstractMech;
+import com.mechempire.sdk.core.game.AbstractPosition;
 import com.mechempire.sdk.core.game.AbstractVehicle;
+import com.mechempire.sdk.math.PositionCal;
 import com.mechempire.sdk.runtime.CommandMessage;
-import com.mechempire.sdk.runtime.Position2D;
 import com.mechempire.sdk.runtime.ResultMessage;
-import com.mechempire.sdk.util.ClassCastUtil;
 
 import javax.annotation.Resource;
 import java.lang.reflect.Method;
@@ -29,6 +29,9 @@ public class OneMechBattleControl implements IBattleControl {
      */
     private final ResultMessage resultMessage = new ResultMessage();
 
+    /**
+     * 指令处理 => 方法 map
+     */
     private final Map<Byte, String> commandHandles = ImmutableMap.<Byte, String>builder()
             .put((byte) 0, "handleMoveToCommand")
             .build();
@@ -42,6 +45,7 @@ public class OneMechBattleControl implements IBattleControl {
     @Override
     public void battle(List<CommandMessage> commandMessageList) throws Exception {
         for (CommandMessage commandMessage : commandMessageList) {
+            // 一次循环一帧
             byte[] command = commandMessage.getCommandSeq();
             CommandMessageReader reader = new CommandMessageReader(command);
             byte commandByte = reader.readByte();
@@ -50,21 +54,23 @@ public class OneMechBattleControl implements IBattleControl {
         }
     }
 
+    /**
+     * 处理 moveTo 指令
+     *
+     * @param reader 指令读取器
+     */
     private void handleMoveToCommand(CommandMessageReader reader) {
         AbstractVehicle vehicle = (AbstractVehicle) engineWorld.getComponent(reader.readInt());
         if (null != vehicle) {
             AbstractMech mech = vehicle.getMech();
-            System.out.printf("startX: %.2f, startY: %.2f\n", mech.getStartX(), mech.getStartY());
-            Position2D position = ClassCastUtil.cast(vehicle.getPosition());
-
-//            System.out.printf("positionX: %.2f, positionY: %.2f\n", position.getX(), position.getY());
-
-//            System.out.println((mech.getVehicleClazz().cast(mech.getVehicle())).getClass().getName());
-
-//            mech.getVehicleClazz().cast(mech.getVehicle());
-//            System.out.println(vehicle.getMech().getVehicleClazz());
-//            System.out.printf("speed: %.2f\n", vehicle.getMech().getVehicle().getSpeed());
-            System.out.printf("speed: %.2f\n", vehicle.getSpeed());
+            double toX = reader.readDouble();
+            double toY = reader.readDouble();
+            double fromX = vehicle.getPosition().getX();
+            double fromY = vehicle.getPosition().getY();
+            AbstractPosition newPosition = PositionCal.getComponentNextFrame2DPosition(fromX, fromY, toX, toY, mech.getVehicle().getSpeed());
+            System.out.printf("%s: (%.2f,%.2f) -> , ", mech.getTeam().getTeamName(), mech.getPosition().getX(), mech.getPosition().getY());
+            mech.updatePosition(newPosition);
+            System.out.printf("(%.2f,%.2f)\n", mech.getPosition().getX(), mech.getPosition().getY());
         }
     }
 }

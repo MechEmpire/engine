@@ -2,7 +2,7 @@ package com.mechempire.engine.runtime;
 
 import com.mechempire.engine.core.IBattleControl;
 import com.mechempire.engine.core.IEngine;
-import com.mechempire.engine.core.RuntimeConstant;
+import com.mechempire.sdk.constant.RuntimeConstant;
 import com.mechempire.sdk.core.game.AbstractGameMapComponent;
 import com.mechempire.sdk.core.game.AbstractMech;
 import com.mechempire.sdk.core.game.AbstractTeam;

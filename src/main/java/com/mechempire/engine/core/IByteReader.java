@@ -13,4 +13,6 @@ public interface IByteReader {
     int readInt();
 
     double readDouble();
+
+    void reset();
 }
