@@ -14,7 +14,6 @@ import com.mechempire.sdk.runtime.ResultMessage;
 import javax.annotation.Resource;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -66,8 +65,10 @@ public class OneMechBattleControl implements IBattleControl {
                     ByteBuffer.allocate(8).putDouble(position.getY()).array())
             );
         }
-        System.out.println("======");
-        System.out.println(Arrays.toString(resultMessage.getByteSeq()));
+        System.out.println("\n======\n");
+        for (int i = 0; i < resultMessage.getByteSeq().length; i++) {
+            System.out.printf("%02x\t", resultMessage.getByteSeq()[i]);
+        }
         resultMessage.clearByteSeq();
     }
 
@@ -85,9 +86,7 @@ public class OneMechBattleControl implements IBattleControl {
             double fromX = vehicle.getPosition().getX();
             double fromY = vehicle.getPosition().getY();
             AbstractPosition newPosition = PositionCal.getComponentNextFrame2DPosition(fromX, fromY, toX, toY, mech.getVehicle().getSpeed());
-//            System.out.printf("%s: (%.2f,%.2f) -> , ", mech.getTeam().getTeamName(), mech.getPosition().getX(), mech.getPosition().getY());
             mech.updatePosition(newPosition);
-//            System.out.printf("(%.2f,%.2f)\n", mech.getPosition().getX(), mech.getPosition().getY());
         }
     }
 }

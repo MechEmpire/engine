@@ -1,7 +1,8 @@
 package com.mechempire.engine;
 
+import com.mechempire.engine.bean.EngineBeans;
+import com.mechempire.engine.bean.ServerBeans;
 import com.mechempire.engine.runtime.MechEmpireEngine;
-import com.mechempire.engine.runtime.RuntimeBeans;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
@@ -16,7 +17,8 @@ public class EngineApplication {
 
     public static void main(String[] args) {
         AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
-        ctx.register(RuntimeBeans.class);
+        ctx.register(EngineBeans.class);
+        ctx.register(ServerBeans.class);
         ctx.refresh();
 
         MechEmpireEngine mechEmpireEngine = ctx.getBean(MechEmpireEngine.class);

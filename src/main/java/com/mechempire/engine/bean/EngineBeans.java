@@ -1,5 +1,8 @@
-package com.mechempire.engine.runtime;
+package com.mechempire.engine.bean;
 
+import com.mechempire.engine.runtime.EngineWorld;
+import com.mechempire.engine.runtime.MechEmpireEngine;
+import com.mechempire.engine.runtime.OneMechBattleControl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -10,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
  * @date 2020/12/16 下午3:55
  */
 @Configuration
-public class RuntimeBeans {
+public class EngineBeans {
     @Bean
     public MechEmpireEngine mechEmpireEngine() {
         return new MechEmpireEngine();
