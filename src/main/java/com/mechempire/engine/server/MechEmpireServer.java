@@ -27,9 +27,11 @@ public class MechEmpireServer implements IServer {
         EventLoopGroup group = new NioEventLoopGroup();
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
-            serverBootstrap.group(group);
-            serverBootstrap.channel(NioServerSocketChannel.class);
-            serverBootstrap.localAddress(new InetSocketAddress("localhost", 6666));
+            serverBootstrap.group(group)
+                    .channel(NioServerSocketChannel.class)
+                    .localAddress(new InetSocketAddress("localhost", 6666));
+
+            System.out.println("server run on localhost:6666");
 
             serverBootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
                 @Override
@@ -39,6 +41,9 @@ public class MechEmpireServer implements IServer {
             });
 
             ChannelFuture channelFuture = serverBootstrap.bind().sync();
+            if (channelFuture.isSuccess()) {
+                System.out.println("Server started successfully.");
+            }
             channelFuture.channel().closeFuture().sync();
         } catch (Exception e) {
             e.printStackTrace();

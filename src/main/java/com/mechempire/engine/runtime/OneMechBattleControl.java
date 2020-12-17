@@ -65,10 +65,10 @@ public class OneMechBattleControl implements IBattleControl {
                     ByteBuffer.allocate(8).putDouble(position.getY()).array())
             );
         }
-        System.out.println("\n======\n");
-        for (int i = 0; i < resultMessage.getByteSeq().length; i++) {
-            System.out.printf("%02x\t", resultMessage.getByteSeq()[i]);
-        }
+//        System.out.println("\n======\n");
+//        for (int i = 0; i < resultMessage.getByteSeq().length; i++) {
+//            System.out.printf("%02x\t", resultMessage.getByteSeq()[i]);
+//        }
         resultMessage.clearByteSeq();
     }
 
