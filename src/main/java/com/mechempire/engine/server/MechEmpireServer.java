@@ -9,6 +9,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
 
@@ -20,6 +21,7 @@ import java.net.InetSocketAddress;
  * <p>
  * Game Server
  */
+@Slf4j
 public class MechEmpireServer implements IServer {
 
     @Override
@@ -31,7 +33,7 @@ public class MechEmpireServer implements IServer {
                     .channel(NioServerSocketChannel.class)
                     .localAddress(new InetSocketAddress("localhost", 6666));
 
-            System.out.println("server run on localhost:6666");
+            log.info("server run on localhost:6666");
 
             serverBootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
                 @Override
@@ -42,7 +44,7 @@ public class MechEmpireServer implements IServer {
 
             ChannelFuture channelFuture = serverBootstrap.bind().sync();
             if (channelFuture.isSuccess()) {
-                System.out.println("Server started successfully.");
+                log.info("Server started successfully.");
             }
             channelFuture.channel().closeFuture().sync();
         } catch (Exception e) {

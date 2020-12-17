@@ -1,4 +1,5 @@
 .idea
 engine.iml
 target/
+log/*
 src/main/resources/agents/*
