@@ -44,4 +44,13 @@ public class EngineWorld extends AbstractWorld {
     public AbstractGameMapComponent getComponent(int componentId) {
         return this.components.get(componentId);
     }
+
+    /**
+     * 获取组件 map
+     *
+     * @return 组件 map
+     */
+    public Map<Integer, AbstractGameMapComponent> getComponents() {
+        return components;
+    }
 }

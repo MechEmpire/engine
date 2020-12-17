@@ -1,7 +1,9 @@
 package com.mechempire.engine.runtime;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Bytes;
 import com.mechempire.engine.core.IBattleControl;
+import com.mechempire.sdk.core.game.AbstractGameMapComponent;
 import com.mechempire.sdk.core.game.AbstractMech;
 import com.mechempire.sdk.core.game.AbstractPosition;
 import com.mechempire.sdk.core.game.AbstractVehicle;
@@ -11,6 +13,8 @@ import com.mechempire.sdk.runtime.ResultMessage;
 
 import javax.annotation.Resource;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -44,14 +48,27 @@ public class OneMechBattleControl implements IBattleControl {
 
     @Override
     public void battle(List<CommandMessage> commandMessageList) throws Exception {
+        // 一次调用一帧
         for (CommandMessage commandMessage : commandMessageList) {
-            // 一次循环一帧
-            byte[] command = commandMessage.getCommandSeq();
+            byte[] command = commandMessage.getByteSeq();
             CommandMessageReader reader = new CommandMessageReader(command);
             byte commandByte = reader.readByte();
             Method method = getClass().getDeclaredMethod(commandHandles.get(commandByte), CommandMessageReader.class);
             method.invoke(this, reader);
         }
+
+        for (Map.Entry<Integer, AbstractGameMapComponent> entry : engineWorld.getComponents().entrySet()) {
+            AbstractGameMapComponent component = entry.getValue();
+            AbstractPosition position = component.getPosition();
+            resultMessage.appendByteSeq(Bytes.concat(
+                    ByteBuffer.allocate(4).putInt(component.getId()).array(),
+                    ByteBuffer.allocate(8).putDouble(position.getX()).array(),
+                    ByteBuffer.allocate(8).putDouble(position.getY()).array())
+            );
+        }
+        System.out.println("======");
+        System.out.println(Arrays.toString(resultMessage.getByteSeq()));
+        resultMessage.clearByteSeq();
     }
 
     /**
@@ -68,9 +85,9 @@ public class OneMechBattleControl implements IBattleControl {
             double fromX = vehicle.getPosition().getX();
             double fromY = vehicle.getPosition().getY();
             AbstractPosition newPosition = PositionCal.getComponentNextFrame2DPosition(fromX, fromY, toX, toY, mech.getVehicle().getSpeed());
-            System.out.printf("%s: (%.2f,%.2f) -> , ", mech.getTeam().getTeamName(), mech.getPosition().getX(), mech.getPosition().getY());
+//            System.out.printf("%s: (%.2f,%.2f) -> , ", mech.getTeam().getTeamName(), mech.getPosition().getX(), mech.getPosition().getY());
             mech.updatePosition(newPosition);
-            System.out.printf("(%.2f,%.2f)\n", mech.getPosition().getX(), mech.getPosition().getY());
+//            System.out.printf("(%.2f,%.2f)\n", mech.getPosition().getX(), mech.getPosition().getY());
         }
     }
 }

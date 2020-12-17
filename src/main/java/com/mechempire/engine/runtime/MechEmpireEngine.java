@@ -131,7 +131,7 @@ public class MechEmpireEngine implements IEngine {
                 barrier.await();
                 List<CommandMessage> messagesPerFrame = new ArrayList<>(40);
                 long startTime = System.currentTimeMillis();
-
+                
                 while (true) {
                     CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
                     if (null != commandMessage) {
