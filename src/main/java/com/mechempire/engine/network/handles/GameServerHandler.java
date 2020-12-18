@@ -8,11 +8,14 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.CharsetUtil;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
+import java.net.SocketAddress;
 
 /**
  * package: com.mechempire.engine.server.handles
@@ -32,12 +35,13 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     /**
      * Session Builder
      */
-    @Resource
+    @Setter
     private NettyTCPSessionBuilder nettyTCPSessionBuilder;
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         nettyTCPSession = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
+        log.info("session_id: {}", nettyTCPSession.getSessionId());
     }
 
     @Override
@@ -45,13 +49,15 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
         if (null != nettyTCPSession) {
             closeOnFlush(nettyTCPSession.getChannel());
         }
+
+        log.info("channel inactive");
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf inBuffer = (ByteBuf) msg;
         String received = inBuffer.toString(CharsetUtil.UTF_8);
-        log.info("Server received: " + received);
+        log.info("server received: " + received);
         ctx.write(Unpooled.copiedBuffer("Hello " + received, CharsetUtil.UTF_8));
     }
 

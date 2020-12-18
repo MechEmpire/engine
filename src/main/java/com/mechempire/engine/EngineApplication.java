@@ -30,7 +30,6 @@ public class EngineApplication {
             try {
                 MechEmpireEngine mechEmpireEngine = ctx.getBean(MechEmpireEngine.class);
                 mechEmpireEngine.run();
-                log.info("mechempire engine is running ...");
             } catch (Exception e) {
                 log.error("engine run error: {}", e.getMessage(), e);
             }
