@@ -78,16 +78,12 @@ public class MechEmpireEngine implements IEngine {
      * 引擎启动方法
      */
     @Override
-    public void run() {
-        try {
-            injectProducerAndTeam("agent_red.jar", redCommandMessageProducer);
-            injectProducerAndTeam("agent_blue.jar", blueCommandMessageProducer);
-            commandMessageConsumer.setQueue(commandMessageQueue);
-            executeConsumerThread(commandMessageConsumer);
-            barrier.await();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public void run() throws Exception {
+        injectProducerAndTeam("agent_red.jar", redCommandMessageProducer);
+        injectProducerAndTeam("agent_blue.jar", blueCommandMessageProducer);
+        commandMessageConsumer.setQueue(commandMessageQueue);
+        executeConsumerThread(commandMessageConsumer);
+        barrier.await();
     }
 
     /**
@@ -131,7 +127,7 @@ public class MechEmpireEngine implements IEngine {
                 barrier.await();
                 List<CommandMessage> messagesPerFrame = new ArrayList<>(40);
                 long startTime = System.currentTimeMillis();
-                
+
                 while (true) {
                     CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
                     if (null != commandMessage) {

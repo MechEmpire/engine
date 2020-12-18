@@ -1,4 +1,4 @@
-package com.mechempire.engine.server.handles;
+package com.mechempire.engine.network.handles;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

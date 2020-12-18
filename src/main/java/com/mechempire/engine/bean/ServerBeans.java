@@ -1,6 +1,6 @@
 package com.mechempire.engine.bean;
 
-import com.mechempire.engine.server.MechEmpireServer;
+import com.mechempire.engine.network.MechEmpireServer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

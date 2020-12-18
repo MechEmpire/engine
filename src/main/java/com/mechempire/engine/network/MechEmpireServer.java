@@ -1,17 +1,18 @@
-package com.mechempire.engine.server;
+package com.mechempire.engine.network;
 
 import com.mechempire.engine.core.IServer;
-import com.mechempire.engine.server.handles.GameServerHandler;
+import com.mechempire.engine.network.handles.ClientRegisterHandler;
+import com.mechempire.engine.network.handles.SendResultMessageHandler;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * package: com.mechempire.engine.server
@@ -24,6 +25,16 @@ import java.net.InetSocketAddress;
 @Slf4j
 public class MechEmpireServer implements IServer {
 
+    /**
+     *
+     */
+    public static Map<String, byte[]> messageMap = new ConcurrentHashMap<String, byte[]>();
+
+    /**
+     *
+     */
+    public static Map<String, Channel> map = new ConcurrentHashMap<String, Channel>();
+
     @Override
     public void run() throws InterruptedException {
         EventLoopGroup group = new NioEventLoopGroup();
@@ -31,14 +42,14 @@ public class MechEmpireServer implements IServer {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
             serverBootstrap.group(group)
                     .channel(NioServerSocketChannel.class)
+                    .option(ChannelOption.SO_BACKLOG, 100)
                     .localAddress(new InetSocketAddress("localhost", 6666));
-
             log.info("server run on localhost:6666");
-
             serverBootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 protected void initChannel(SocketChannel socketChannel) throws Exception {
-                    socketChannel.pipeline().addLast(new GameServerHandler());
+                    socketChannel.pipeline().addLast(new ClientRegisterHandler());
+                    socketChannel.pipeline().addLast(new SendResultMessageHandler());
                 }
             });
 

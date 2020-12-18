@@ -1,5 +1,3 @@
-import com.mechempire.engine.runtime.MechEmpireEngine;
-
 /**
  * package: PACKAGE_NAME
  *
@@ -9,7 +7,7 @@ import com.mechempire.engine.runtime.MechEmpireEngine;
 public class MechempireEngineTest {
 
     public static void main(String[] args) {
-        MechEmpireEngine engine = new MechEmpireEngine();
-        engine.run();
+//        MechEmpireEngine engine = new MechEmpireEngine();
+//        engine.run();
     }
 }

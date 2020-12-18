@@ -11,5 +11,5 @@ public interface IEngine {
     /**
      * run engine.
      */
-    void run();
+    void run() throws Exception;
 }
