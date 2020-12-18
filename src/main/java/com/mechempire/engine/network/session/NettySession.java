@@ -1,5 +1,6 @@
 package com.mechempire.engine.network.session;
 
+import com.mechempire.engine.core.ISession;
 import io.netty.channel.Channel;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,10 @@ public class NettySession implements ISession {
      * player id
      */
     private long playerId;
+
+    public NettySession(Channel channel) {
+        this.channel = channel;
+    }
 
     @Override
     public boolean isConnected() {

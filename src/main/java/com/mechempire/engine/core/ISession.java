@@ -1,10 +1,12 @@
-package com.mechempire.engine.network.session;
+package com.mechempire.engine.core;
 
 /**
  * package: com.mechempire.engine.server.session
  *
  * @author <tairy> tairyguo@gmail.com
  * @date 2020/12/18 上午8:50
+ * <p>
+ * 客户端会话接口
  */
 public interface ISession {
 

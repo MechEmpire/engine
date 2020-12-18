@@ -1,6 +1,7 @@
 package com.mechempire.engine.bean;
 
 import com.mechempire.engine.network.MechEmpireServer;
+import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -12,8 +13,14 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class ServerBeans {
+
     @Bean
     public MechEmpireServer mechEmpireServer() {
         return new MechEmpireServer();
+    }
+
+    @Bean
+    public NettyTCPSessionBuilder nettyTCPSessionBuilder() {
+        return new NettyTCPSessionBuilder();
     }
 }
