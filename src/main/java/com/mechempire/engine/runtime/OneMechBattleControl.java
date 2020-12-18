@@ -10,6 +10,7 @@ import com.mechempire.sdk.core.game.AbstractVehicle;
 import com.mechempire.sdk.math.PositionCal;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.ResultMessage;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.lang.reflect.Method;
@@ -25,6 +26,7 @@ import java.util.Map;
  * <p>
  * 只有一个机甲的对战逻辑
  */
+@Component
 public class OneMechBattleControl implements IBattleControl {
 
     /**

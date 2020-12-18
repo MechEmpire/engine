@@ -4,16 +4,19 @@ import com.mechempire.engine.constant.ServerConstant;
 import com.mechempire.engine.core.IServer;
 import com.mechempire.engine.network.handles.GameServerHandler;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import java.net.InetSocketAddress;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * package: com.mechempire.engine.server
@@ -24,16 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * Game Server
  */
 @Slf4j
+@Component
 public class MechEmpireServer implements IServer {
-    /**
-     *
-     */
-    public static Map<String, byte[]> messageMap = new ConcurrentHashMap<String, byte[]>();
 
-    /**
-     *
-     */
-    public static Map<String, Channel> map = new ConcurrentHashMap<String, Channel>();
+    @Resource
+    GameServerHandler gameServerHandler;
 
     @Override
     public void run() throws InterruptedException {
@@ -55,7 +53,7 @@ public class MechEmpireServer implements IServer {
                                     ServerConstant.SESSION_HEART_ALL_TIMEOUT
                             )
                     );
-                    socketChannel.pipeline().addLast(new GameServerHandler());
+                    socketChannel.pipeline().addLast(gameServerHandler);
                 }
             });
 

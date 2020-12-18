@@ -10,6 +10,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.CharsetUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 
@@ -20,20 +21,23 @@ import javax.annotation.Resource;
  * @date 2020/12/17 下午4:01
  */
 @Slf4j
+@Component
 public class GameServerHandler extends ChannelInboundHandlerAdapter {
 
     /**
-     * 客户端会话
+     * client session
      */
     private NettyTCPSession nettyTCPSession;
 
+    /**
+     * Session Builder
+     */
     @Resource
-    private NettyTCPSessionBuilder tcpSessionBuilder;
+    private NettyTCPSessionBuilder nettyTCPSessionBuilder;
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        nettyTCPSession = (NettyTCPSession) tcpSessionBuilder.buildSession(ctx.channel());
-        
+        nettyTCPSession = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
     }
 
     @Override

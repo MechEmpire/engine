@@ -2,6 +2,7 @@ package com.mechempire.engine.runtime;
 
 import com.mechempire.sdk.core.game.AbstractGameMapComponent;
 import com.mechempire.sdk.core.game.AbstractWorld;
+import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.Map;
  * @author <tairy> tairyguo@gmail.com
  * @date 2020/12/15 下午4:29
  */
+@Component
 public class EngineWorld extends AbstractWorld {
 
     /**

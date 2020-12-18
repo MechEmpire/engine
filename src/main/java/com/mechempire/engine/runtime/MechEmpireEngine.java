@@ -13,6 +13,7 @@ import com.mechempire.sdk.core.message.IProducer;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 import com.mechempire.sdk.util.ClassCastUtil;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import java.util.concurrent.*;
  * <p>
  * 机甲帝国引擎
  */
+@Component
 public class MechEmpireEngine implements IEngine {
 
     /**
