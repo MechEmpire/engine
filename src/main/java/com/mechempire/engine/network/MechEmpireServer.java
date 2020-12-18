@@ -3,8 +3,8 @@ package com.mechempire.engine.network;
 import com.mechempire.engine.constant.ServerConstant;
 import com.mechempire.engine.core.IServer;
 import com.mechempire.engine.network.handles.GameServerHandler;
-import com.mechempire.engine.network.handles.ServerIdleStateHandle;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
+import com.mechempire.sdk.network.CommonHeartBeatHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -67,8 +67,7 @@ public class MechEmpireServer implements IServer {
                             GameServerHandler gameServerHandler = new GameServerHandler();
                             gameServerHandler.setNettyTCPSessionBuilder(nettyTCPSessionBuilder);
                             socketChannel.pipeline().addLast(gameServerHandler);
-
-                            socketChannel.pipeline().addLast(new ServerIdleStateHandle());
+                            socketChannel.pipeline().addLast(new CommonHeartBeatHandler());
                         }
                     })
                     .bind(ServerConstant.host, ServerConstant.port)
