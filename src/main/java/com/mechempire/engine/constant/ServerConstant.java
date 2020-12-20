@@ -12,13 +12,12 @@ public class ServerConstant {
     /**
      * server host
      */
-    public static final String host = "localhost";
+    public static final String host = "0.0.0.0";
 
     /**
      * server port
      */
     public static final int port = 6666;
-
 
     // 心跳
 

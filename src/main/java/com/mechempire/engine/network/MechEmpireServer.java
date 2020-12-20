@@ -4,7 +4,6 @@ import com.mechempire.engine.constant.ServerConstant;
 import com.mechempire.engine.core.IServer;
 import com.mechempire.engine.network.handles.GameServerHandler;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
-import com.mechempire.sdk.network.CommonHeartBeatHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -34,12 +33,15 @@ public class MechEmpireServer implements IServer {
     /**
      * boss 线程组用于处理连接工作
      */
-    private EventLoopGroup boss = new NioEventLoopGroup();
+    private final EventLoopGroup boss = new NioEventLoopGroup(1);
 
     /**
      * work 线程组用于数据处理
      */
-    private EventLoopGroup worker = new NioEventLoopGroup();
+    private final EventLoopGroup worker = new NioEventLoopGroup(1);
+
+    @Resource
+    private GameServerHandler gameServerHandler;
 
     @Resource
     private NettyTCPSessionBuilder nettyTCPSessionBuilder;
@@ -61,13 +63,12 @@ public class MechEmpireServer implements IServer {
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
 
                             socketChannel.pipeline().addLast(
-                                    new IdleStateHandler(10, 0, 0)
+                                    new IdleStateHandler(5, 5, 5)
                             );
-
-                            GameServerHandler gameServerHandler = new GameServerHandler();
-                            gameServerHandler.setNettyTCPSessionBuilder(nettyTCPSessionBuilder);
+//                            GameServerHandler gameServerHandler = new GameServerHandler();
+//                            gameServerHandler.setNettyTCPSessionBuilder(nettyTCPSessionBuilder);
                             socketChannel.pipeline().addLast(gameServerHandler);
-                            socketChannel.pipeline().addLast(new CommonHeartBeatHandler());
+//                            socketChannel.pipeline().addLast(new LengthFieldBasedFrameDecoder(1024, 0, 4, -4, 0));
                         }
                     })
                     .bind(ServerConstant.host, ServerConstant.port)
