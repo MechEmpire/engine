@@ -15,7 +15,7 @@ public class AgentLoader {
     /**
      * agent 文件目录
      */
-    private static final String AGENT_BASE_PATH = "file:/home/tairy/Documents/Working/mechempire/engine/src/main/resources/agents/";
+    private static final String AGENT_BASE_PATH = "file:/Users/tairy/Documents/Working/mechempire/engine/src/main/resources/agents/";
 
     /**
      * 类加载器缓存

@@ -13,6 +13,7 @@ import com.mechempire.sdk.core.message.IProducer;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 import com.mechempire.sdk.util.ClassCastUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -29,6 +30,7 @@ import java.util.concurrent.*;
  * 机甲帝国引擎
  */
 @Component
+@Slf4j
 public class MechEmpireEngine implements IEngine {
 
     /**
@@ -143,7 +145,7 @@ public class MechEmpireEngine implements IEngine {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("execute consumer thread error: {}", e.getMessage(), e);
             }
         });
     }

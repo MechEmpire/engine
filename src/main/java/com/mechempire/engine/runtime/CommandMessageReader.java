@@ -14,7 +14,10 @@ public class CommandMessageReader implements IByteReader {
 
     private Integer offset;
 
-    private final byte[] commandSeq;
+    private byte[] commandSeq;
+
+    public CommandMessageReader() {
+    }
 
     public CommandMessageReader(byte[] commandSeq) {
         this.offset = 0;
@@ -47,5 +50,9 @@ public class CommandMessageReader implements IByteReader {
     @Override
     public void reset() {
         this.offset = 0;
+    }
+
+    public void setCommandSeq(byte[] commandSeq) {
+        this.commandSeq = commandSeq;
     }
 }

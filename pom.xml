@@ -19,7 +19,7 @@
             <artifactId>sdk</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>system</scope>
-            <systemPath>/home/tairy/Documents/Working/mechempire/sdk/target/sdk-1.0-SNAPSHOT.jar</systemPath>
+            <systemPath>/Users/tairy/Documents/Working/mechempire/sdk/target/sdk-1.0-SNAPSHOT.jar</systemPath>
         </dependency>
 
         <!-- use spring context -->

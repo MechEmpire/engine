@@ -2,6 +2,7 @@ package com.mechempire.engine.network.handles;
 
 import com.mechempire.engine.network.NettyConfig;
 import com.mechempire.engine.network.session.NettyTCPSession;
+import com.mechempire.engine.network.session.SessionManager;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -31,6 +32,9 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
      */
     private NettyTCPSession nettyTCPSession;
 
+    @Resource
+    private SessionManager sessionManager;
+
     /**
      * session builder
      */
@@ -40,6 +44,7 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         nettyTCPSession = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
+        sessionManager.put(nettyTCPSession.getSessionId(), nettyTCPSession);
         log.info("channel_active, channel_id: {}, session_id: {}", ctx.channel().id(), nettyTCPSession.getSessionId());
         NettyConfig.channelGroup.add(ctx.channel());
         ctx.flush();
@@ -56,7 +61,6 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
         } else {
             ctx.write(Unpooled.copiedBuffer(received, CharsetUtil.UTF_8));
         }
-
     }
 
     @Override
