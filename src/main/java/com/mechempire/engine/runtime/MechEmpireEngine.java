@@ -1,21 +1,22 @@
 package com.mechempire.engine.runtime;
 
+import com.google.protobuf.Any;
 import com.mechempire.engine.core.IBattleControl;
 import com.mechempire.engine.core.IEngine;
+import com.mechempire.engine.network.session.NettySession;
 import com.mechempire.sdk.constant.RuntimeConstant;
-import com.mechempire.sdk.core.game.AbstractGameMapComponent;
-import com.mechempire.sdk.core.game.AbstractMech;
-import com.mechempire.sdk.core.game.AbstractTeam;
-import com.mechempire.sdk.core.game.IMechControlFlow;
+import com.mechempire.sdk.core.game.*;
 import com.mechempire.sdk.core.message.AbstractMessage;
 import com.mechempire.sdk.core.message.IConsumer;
 import com.mechempire.sdk.core.message.IProducer;
+import com.mechempire.sdk.proto.ResultMessageProto;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 import com.mechempire.sdk.util.ClassCastUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.*;
 
@@ -56,7 +57,7 @@ public class MechEmpireEngine implements IEngine {
     private IBattleControl battleControl;
 
     /**
-     * 线程屏障
+     * 线程屏障, 保障所有游戏线程同时启动
      */
     private final CyclicBarrier barrier = new CyclicBarrier(4);
 
@@ -64,6 +65,11 @@ public class MechEmpireEngine implements IEngine {
      * 世界, 对战运行时数据记录
      */
     private EngineWorld engineWorld;
+
+    /**
+     * 监听 sessions
+     */
+    private List<NettySession> watchSessions = new LinkedList<>();
 
     /**
      * 线程池
@@ -81,8 +87,8 @@ public class MechEmpireEngine implements IEngine {
     public void run(String agentRedName, String agentBlueName) throws Exception {
         new Thread(() -> {
             try {
-                battleControl = new OneMechBattleControl();
                 engineWorld = new EngineWorld();
+                battleControl = new OneMechBattleControl(engineWorld);
 
                 injectProducerAndTeam(agentRedName, redCommandMessageProducer);
                 injectProducerAndTeam(agentBlueName, blueCommandMessageProducer);
@@ -93,6 +99,15 @@ public class MechEmpireEngine implements IEngine {
                 log.error("engine run error: {}", e.getMessage(), e);
             }
         }).start();
+    }
+
+    /**
+     * 添加监听 session
+     *
+     * @param session session
+     */
+    public void addWatchSession(NettySession session) {
+        this.watchSessions.add(session);
     }
 
     /**
@@ -147,6 +162,30 @@ public class MechEmpireEngine implements IEngine {
                     // each frame
                     if (0 == (System.currentTimeMillis() - startTime) % RuntimeConstant.FRAME_GAP) {
                         battleControl.battle(messagesPerFrame);
+
+                        ResultMessageProto.ResultMessageList.Builder resultMessages =
+                                ResultMessageProto.ResultMessageList.newBuilder();
+
+                        engineWorld.getComponents().forEach((k, v) -> {
+                            AbstractPosition position = v.getPosition();
+                            ResultMessageProto.ResultMessage.Builder builder =
+                                    ResultMessageProto.ResultMessage.newBuilder();
+                            builder.setComponentId(v.getId())
+                                    .setPositionX(position.getX())
+                                    .setPositionY(position.getY());
+                            resultMessages.addResultMessage(builder.build());
+                        });
+
+                        ResultMessageProto.CommonData.Builder commonDataBuilder =
+                                ResultMessageProto.CommonData.newBuilder();
+
+                        commonDataBuilder.setData(Any.pack(resultMessages.build()));
+                        commonDataBuilder.setMessage("battle_result_message");
+
+                        watchSessions.forEach((s) -> {
+                            s.getChannel().writeAndFlush(commonDataBuilder.build());
+                        });
+
                         messagesPerFrame.clear();
                         frameCount++;
                     }
