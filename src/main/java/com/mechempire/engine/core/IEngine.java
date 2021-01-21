@@ -11,5 +11,5 @@ public interface IEngine {
     /**
      * run engine.
      */
-    void run() throws Exception;
+    void run(String agentRedName, String agentBlueName) throws Exception;
 }

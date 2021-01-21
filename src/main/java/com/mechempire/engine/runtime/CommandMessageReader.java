@@ -1,6 +1,7 @@
 package com.mechempire.engine.runtime;
 
 import com.mechempire.engine.core.IByteReader;
+import org.springframework.stereotype.Component;
 
 import java.nio.ByteBuffer;
 
@@ -10,6 +11,7 @@ import java.nio.ByteBuffer;
  * @author <tairy> tairyguo@gmail.com
  * @date 2020/12/16 下午2:50
  */
+@Component
 public class CommandMessageReader implements IByteReader {
 
     private Integer offset;

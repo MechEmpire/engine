@@ -1,23 +1,20 @@
 package com.mechempire.engine.runtime;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.primitives.Bytes;
+import com.google.protobuf.Any;
 import com.mechempire.engine.core.IBattleControl;
 import com.mechempire.engine.network.session.NettySession;
 import com.mechempire.engine.network.session.SessionManager;
-import com.mechempire.sdk.core.game.AbstractGameMapComponent;
 import com.mechempire.sdk.core.game.AbstractMech;
 import com.mechempire.sdk.core.game.AbstractPosition;
 import com.mechempire.sdk.core.game.AbstractVehicle;
 import com.mechempire.sdk.math.PositionCal;
+import com.mechempire.sdk.proto.ResultMessageProto;
 import com.mechempire.sdk.runtime.CommandMessage;
-import com.mechempire.sdk.runtime.ResultMessage;
-import io.netty.buffer.Unpooled;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 
@@ -35,10 +32,8 @@ public class OneMechBattleControl implements IBattleControl {
     @Resource
     private SessionManager sessionManager;
 
-    /**
-     * 结果帧
-     */
-    private final ResultMessage resultMessage = new ResultMessage();
+    @Resource
+    private CommandMessageReader commandMessageReader;
 
     /**
      * 指令处理 => 方法 map
@@ -56,38 +51,37 @@ public class OneMechBattleControl implements IBattleControl {
     @Override
     public void battle(List<CommandMessage> commandMessageList) throws Exception {
         // 一次调用一帧
-        CommandMessageReader reader = new CommandMessageReader();
         for (CommandMessage commandMessage : commandMessageList) {
             byte[] command = commandMessage.getByteSeq();
-            reader.setCommandSeq(command);
-            reader.reset();
-            byte commandByte = reader.readByte();
-            Method method = getClass().getDeclaredMethod(commandHandles.get(commandByte), CommandMessageReader.class);
-            method.invoke(this, reader);
+            commandMessageReader.setCommandSeq(command);
+            commandMessageReader.reset();
+            byte commandByte = commandMessageReader.readByte();
+            Method method = getClass().getDeclaredMethod(
+                    commandHandles.get(commandByte), CommandMessageReader.class);
+            method.invoke(this, commandMessageReader);
         }
 
-        for (Map.Entry<Integer, AbstractGameMapComponent> entry : engineWorld.getComponents().entrySet()) {
-            AbstractGameMapComponent component = entry.getValue();
-            AbstractPosition position = component.getPosition();
-            resultMessage.appendByteSeq(
-                    Bytes.concat(
-                            ByteBuffer.allocate(4).putInt(component.getId()).array(),
-                            ByteBuffer.allocate(8).putDouble(position.getX()).array(),
-                            ByteBuffer.allocate(8).putDouble(position.getY()).array()
-                    )
-            );
-        }
-//        System.out.println("\n======");
-//        for (int i = 0; i < resultMessage.getByteSeq().length; i++) {
-//            System.out.printf("%02x\t", resultMessage.getByteSeq()[i]);
-//        }
+        ResultMessageProto.ResultMessageList.Builder resultMessages =
+                ResultMessageProto.ResultMessageList.newBuilder();
 
+        engineWorld.getComponents().forEach((k, v) -> {
+            AbstractPosition position = v.getPosition();
+            ResultMessageProto.ResultMessage.Builder builder =
+                    ResultMessageProto.ResultMessage.newBuilder();
+            builder.setComponentId(v.getId())
+                    .setPositionX(position.getX())
+                    .setPositionY(position.getY());
+            resultMessages.addResultMessage(builder.build());
+        });
+
+        ResultMessageProto.CommonData.Builder commonDataBuilder =
+                ResultMessageProto.CommonData.newBuilder();
         NettySession nettySession = sessionManager.findBySessionId(1L);
         if (null != nettySession) {
-            nettySession.getChannel().writeAndFlush(
-                    Unpooled.copiedBuffer(resultMessage.getByteSeq()));
+            commonDataBuilder.setData(Any.pack(resultMessages.build()));
+            commonDataBuilder.setMessage("result_message");
+            nettySession.getChannel().writeAndFlush(commonDataBuilder.build());
         }
-        resultMessage.clearByteSeq();
     }
 
     /**

@@ -29,8 +29,8 @@ import java.util.concurrent.*;
  * <p>
  * 机甲帝国引擎
  */
-@Component
 @Slf4j
+@Component
 public class MechEmpireEngine implements IEngine {
 
     /**
@@ -82,12 +82,19 @@ public class MechEmpireEngine implements IEngine {
      * 引擎启动方法
      */
     @Override
-    public void run() throws Exception {
-        injectProducerAndTeam("agent_red.jar", redCommandMessageProducer);
-        injectProducerAndTeam("agent_blue.jar", blueCommandMessageProducer);
-        commandMessageConsumer.setQueue(commandMessageQueue);
-        executeConsumerThread(commandMessageConsumer);
-        barrier.await();
+    public void run(String agentRedName, String agentBlueName) throws Exception {
+        Thread engineThread = new Thread(() -> {
+            try {
+                injectProducerAndTeam(agentRedName, redCommandMessageProducer);
+                injectProducerAndTeam(agentBlueName, blueCommandMessageProducer);
+                commandMessageConsumer.setQueue(commandMessageQueue);
+                executeConsumerThread(commandMessageConsumer);
+                barrier.await();
+            } catch (Exception e) {
+                log.error("engine run error: {}", e.getMessage(), e);
+            }
+        });
+        engineThread.start();
     }
 
     /**
@@ -115,7 +122,7 @@ public class MechEmpireEngine implements IEngine {
                 barrier.await();
                 controlFlow.run(commandMessageProducer, team);
             } catch (InterruptedException | BrokenBarrierException e) {
-                e.printStackTrace();
+                log.error("run control flow error: {}", e.getMessage(), e);
             }
         });
     }
@@ -131,8 +138,9 @@ public class MechEmpireEngine implements IEngine {
                 barrier.await();
                 List<CommandMessage> messagesPerFrame = new ArrayList<>(40);
                 long startTime = System.currentTimeMillis();
+                int frameCount = 0;
 
-                while (true) {
+                while (frameCount <= 20000) {
                     CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
                     if (null != commandMessage) {
                         messagesPerFrame.add(commandMessage);
@@ -142,6 +150,7 @@ public class MechEmpireEngine implements IEngine {
                     if (0 == (System.currentTimeMillis() - startTime) % RuntimeConstant.FRAME_GAP) {
                         battleControl.battle(messagesPerFrame);
                         messagesPerFrame.clear();
+                        frameCount++;
                     }
                 }
             } catch (Exception e) {

@@ -4,13 +4,11 @@ import com.mechempire.engine.network.NettyConfig;
 import com.mechempire.engine.network.session.NettyTCPSession;
 import com.mechempire.engine.network.session.SessionManager;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import com.mechempire.sdk.proto.ResultMessageProto;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.util.CharsetUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -53,14 +51,17 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        ByteBuf inBuffer = (ByteBuf) msg;
-        String received = inBuffer.toString(CharsetUtil.UTF_8);
-        log.info("server received: " + received);
-        if (received.equals("ping")) {
-            ctx.write(Unpooled.copiedBuffer("pong", CharsetUtil.UTF_8));
+        ResultMessageProto.CommonData req = (ResultMessageProto.CommonData) msg;
+        log.info("server receiver: " + req.getMessage());
+        ResultMessageProto.CommonData.Builder builder = ResultMessageProto.CommonData.newBuilder();
+
+        if (req.getMessage().equals("ping")) {
+            builder.setMessage("pong");
         } else {
-            ctx.write(Unpooled.copiedBuffer(received, CharsetUtil.UTF_8));
+            builder.setMessage(req.getMessage());
         }
+
+        ctx.writeAndFlush(builder.build());
     }
 
     @Override

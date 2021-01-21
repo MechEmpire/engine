@@ -4,6 +4,7 @@ import com.mechempire.engine.constant.ServerConstant;
 import com.mechempire.engine.core.IServer;
 import com.mechempire.engine.network.handles.GameServerHandler;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
+import com.mechempire.sdk.proto.ResultMessageProto;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -12,6 +13,10 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -61,14 +66,14 @@ public class MechEmpireServer implements IServer {
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
-
-                            socketChannel.pipeline().addLast(
-                                    new IdleStateHandler(5, 5, 5)
-                            );
-//                            GameServerHandler gameServerHandler = new GameServerHandler();
-//                            gameServerHandler.setNettyTCPSessionBuilder(nettyTCPSessionBuilder);
+                            // 心跳逻辑
+                            socketChannel.pipeline().addLast(new IdleStateHandler(5, 5, 5));
+                            // 添加 ProtobufVarint32FrameDecoder，主要用于 Protobuf 半包处理
+                            socketChannel.pipeline().addLast(new ProtobufVarint32FrameDecoder());
+                            socketChannel.pipeline().addLast(new ProtobufDecoder(ResultMessageProto.CommonData.getDefaultInstance()));
+                            socketChannel.pipeline().addLast(new ProtobufVarint32LengthFieldPrepender());
+                            socketChannel.pipeline().addLast(new ProtobufEncoder());
                             socketChannel.pipeline().addLast(gameServerHandler);
-//                            socketChannel.pipeline().addLast(new LengthFieldBasedFrameDecoder(1024, 0, 4, -4, 0));
                         }
                     })
                     .bind(ServerConstant.host, ServerConstant.port)

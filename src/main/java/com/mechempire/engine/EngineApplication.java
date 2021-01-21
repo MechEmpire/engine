@@ -26,16 +26,6 @@ public class EngineApplication {
         ctx.scan("com.mechempire");
         ctx.refresh();
 
-        Thread engineThread = new Thread(() -> {
-            try {
-                MechEmpireEngine mechEmpireEngine = ctx.getBean(MechEmpireEngine.class);
-                mechEmpireEngine.run();
-            } catch (Exception e) {
-                log.error("engine run error: {}", e.getMessage(), e);
-            }
-        });
-        engineThread.start();
-
         Thread serverThread = new Thread(() -> {
             try {
                 MechEmpireServer mechEmpireServer = ctx.getBean(MechEmpireServer.class);
