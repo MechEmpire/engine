@@ -1,7 +1,6 @@
 package com.mechempire.engine;
 
 import com.mechempire.engine.network.MechEmpireServer;
-import com.mechempire.engine.runtime.MechEmpireEngine;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 

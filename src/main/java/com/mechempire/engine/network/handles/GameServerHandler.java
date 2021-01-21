@@ -32,7 +32,6 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
 
     @Resource
     private SessionManager sessionManager;
-
     /**
      * session builder
      */
@@ -43,6 +42,7 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         nettyTCPSession = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
         sessionManager.put(nettyTCPSession.getSessionId(), nettyTCPSession);
+
         log.info("channel_active, channel_id: {}, session_id: {}", ctx.channel().id(), nettyTCPSession.getSessionId());
         NettyConfig.channelGroup.add(ctx.channel());
         ctx.flush();

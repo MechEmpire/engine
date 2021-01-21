@@ -14,9 +14,7 @@ import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 import com.mechempire.sdk.util.ClassCastUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -27,10 +25,9 @@ import java.util.concurrent.*;
  * @author <tairy> tairyguo@gmail.com
  * @date 2020/12/14 上午11:24
  * <p>
- * 机甲帝国引擎
+ * 机甲帝国对战引擎
  */
 @Slf4j
-@Component
 public class MechEmpireEngine implements IEngine {
 
     /**
@@ -56,7 +53,6 @@ public class MechEmpireEngine implements IEngine {
     /**
      * 对战计算控制对象
      */
-    @Resource
     private IBattleControl battleControl;
 
     /**
@@ -67,24 +63,27 @@ public class MechEmpireEngine implements IEngine {
     /**
      * 世界, 对战运行时数据记录
      */
-    @Resource
     private EngineWorld engineWorld;
 
     /**
      * 线程池
      */
-    private final ExecutorService threadPool = new ThreadPoolExecutor(3, 3,
-            0L, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<Runnable>(4)
-    );
+    private final ExecutorService threadPool =
+            new ThreadPoolExecutor(
+                    3, 3, 0L, TimeUnit.MILLISECONDS,
+                    new LinkedBlockingQueue<Runnable>(4)
+            );
 
     /**
      * 引擎启动方法
      */
     @Override
     public void run(String agentRedName, String agentBlueName) throws Exception {
-        Thread engineThread = new Thread(() -> {
+        new Thread(() -> {
             try {
+                battleControl = new OneMechBattleControl();
+                engineWorld = new EngineWorld();
+
                 injectProducerAndTeam(agentRedName, redCommandMessageProducer);
                 injectProducerAndTeam(agentBlueName, blueCommandMessageProducer);
                 commandMessageConsumer.setQueue(commandMessageQueue);
@@ -93,8 +92,7 @@ public class MechEmpireEngine implements IEngine {
             } catch (Exception e) {
                 log.error("engine run error: {}", e.getMessage(), e);
             }
-        });
-        engineThread.start();
+        }).start();
     }
 
     /**

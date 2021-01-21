@@ -26,7 +26,7 @@ import java.util.Map;
  * <p>
  * 只有一个机甲的对战逻辑
  */
-@Component
+//@Component
 public class OneMechBattleControl implements IBattleControl {
 
     @Resource
@@ -76,6 +76,7 @@ public class OneMechBattleControl implements IBattleControl {
 
         ResultMessageProto.CommonData.Builder commonDataBuilder =
                 ResultMessageProto.CommonData.newBuilder();
+
         NettySession nettySession = sessionManager.findBySessionId(1L);
         if (null != nettySession) {
             commonDataBuilder.setData(Any.pack(resultMessages.build()));
