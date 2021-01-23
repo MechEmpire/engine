@@ -4,6 +4,8 @@ import com.mechempire.engine.network.NettyConfig;
 import com.mechempire.engine.network.session.NettyTCPSession;
 import com.mechempire.engine.network.session.SessionManager;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
+import com.mechempire.engine.runtime.EngineManager;
+import com.mechempire.engine.runtime.MechEmpireEngine;
 import com.mechempire.sdk.proto.ResultMessageProto;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -40,12 +42,6 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        nettyTCPSession = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
-
-//        MechEmpireEngine engine = new MechEmpireEngine("agent_red.jar", "agent_blue.jar");
-//        engine.addWatchSession(nettyTCPSession);
-//        engine.run();
-
         log.info("channel_active, channel_id: {}, session_id: {}", ctx.channel().id(), nettyTCPSession.getSessionId());
         NettyConfig.channelGroup.add(ctx.channel());
         ctx.flush();
@@ -58,14 +54,22 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
         log.info("server receiver: " + req.getMessage());
         ResultMessageProto.CommonData.Builder builder = ResultMessageProto.CommonData.newBuilder();
 
-        if (req.getMessage().equals("ping")) {
-            builder.setMessage("pong");
-        } else if (req.getMessage().equals("init")) {
-            // todo engine.init();
-        } else if (req.getMessage().equals("start")) {
-            // todo engine.run();
-        } else {
-            builder.setMessage(req.getMessage());
+        switch (req.getMessage()) {
+            case "ping":
+                builder.setMessage("pong");
+                break;
+            case "init":
+                MechEmpireEngine engine = new MechEmpireEngine("agent_red.jar", "agent_blue.jar");
+                nettyTCPSession = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
+                engine.addWatchSession(nettyTCPSession);
+                EngineManager.addEngine(engine);
+                break;
+            case "start":
+                // todo engine.run();
+                break;
+            default:
+                builder.setMessage(req.getMessage());
+                break;
         }
 
         ctx.writeAndFlush(builder.build());
@@ -80,10 +84,12 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
         NettyConfig.channelGroup.remove(ctx.channel());
-        if (null != nettyTCPSession) {
-            ctx.flush();
-            ctx.close();
-        }
+        ctx.flush();
+        ctx.close();
+//        if (null != nettyTCPSession) {
+//            ctx.flush();
+//            ctx.close();
+//        }
     }
 
     @Override

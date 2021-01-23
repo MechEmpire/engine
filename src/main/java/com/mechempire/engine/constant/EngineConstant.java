@@ -17,4 +17,9 @@ public class EngineConstant {
      * 引擎运行状态
      */
     public static byte ENGINE_STATUS_RUNNING = 2;
+
+    /**
+     * 引擎关闭状态
+     */
+    public static byte ENGINE_STATUS_CLOSED = 3;
 }

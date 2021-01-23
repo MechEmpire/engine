@@ -36,6 +36,31 @@ import java.util.concurrent.*;
 public class MechEmpireEngine implements IEngine {
 
     /**
+     * 引擎 id
+     */
+    private int id = 0;
+
+    /**
+     * 引擎状态
+     */
+    private byte status = 0;
+
+    /**
+     * 组件数
+     */
+    private Integer componentCount = 0;
+
+    /**
+     * 红方消息生产者
+     */
+    private IProducer redCommandMessageProducer;
+
+    /**
+     * 蓝方消息生产者
+     */
+    private IProducer blueCommandMessageProducer;
+
+    /**
      * 指令消息队列消费者
      */
     private final IConsumer commandMessageConsumer = new LocalCommandMessageConsumer();
@@ -75,15 +100,9 @@ public class MechEmpireEngine implements IEngine {
      */
     private static final String AGENT_MAIN_CLASS = "com.mechempire.agent.AgentMain";
 
-    /**
-     * 组件数
-     */
-    private Integer componentCount = 0;
-
-
-    private byte status = 0;
-
-    private int id = 0;
+    int getId() {
+        return id;
+    }
 
     /**
      * 线程池
@@ -104,15 +123,11 @@ public class MechEmpireEngine implements IEngine {
     public MechEmpireEngine(String agentRedName, String agentBlueName) {
         this.id = EngineIdFactory.getId();
         this.status = EngineConstant.ENGINE_STATUS_CREATED;
-
+        redCommandMessageProducer = new LocalCommandMessageProducer();
+        blueCommandMessageProducer = new LocalCommandMessageProducer();
         engineWorld = new EngineWorld();
-
-        IProducer redCommandMessageProducer = new LocalCommandMessageProducer();
         injectProducerAndTeam(agentRedName, redCommandMessageProducer);
-
-        IProducer blueCommandMessageProducer = new LocalCommandMessageProducer();
         injectProducerAndTeam(agentBlueName, blueCommandMessageProducer);
-
         battleControl = new OneMechBattleControl(engineWorld, new CommandMessageReader());
     }
 
@@ -131,6 +146,15 @@ public class MechEmpireEngine implements IEngine {
                 log.error("engine run error: {}", e.getMessage(), e);
             }
         }).start();
+    }
+
+    @Override
+    public void close() throws Exception {
+        engineWorld = null;
+        redCommandMessageProducer = null;
+        blueCommandMessageProducer = null;
+        battleControl = null;
+        this.status = EngineConstant.ENGINE_STATUS_CLOSED;
     }
 
     /**

@@ -12,4 +12,9 @@ public interface IEngine {
      * run engine.
      */
     void run() throws Exception;
+
+    /**
+     * close engine.
+     */
+    void close() throws Exception;
 }
