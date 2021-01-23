@@ -63,8 +63,19 @@ public class MechEmpireEngine implements IEngine {
      */
     private List<NettySession> watchSessions = new LinkedList<>();
 
+    /**
+     * 用户 jar 包中的 team 类名
+     */
     private static final String AGENT_TEAM_CLASS = "com.mechempire.agent.Team";
 
+    /**
+     * agent 主控制类
+     */
+    private static final String AGENT_MAIN_CLASS = "com.mechempire.agent.AgentMain";
+
+    /**
+     * 组件数
+     */
     private Integer componentCount = 0;
 
     /**
@@ -77,18 +88,21 @@ public class MechEmpireEngine implements IEngine {
             );
 
 
-    public MechEmpireEngine(String agentRedName, String agentBlueName) throws Exception {
+    /**
+     * 引擎构造函数
+     *
+     * @param agentRedName  红方 jar 包名称
+     * @param agentBlueName 蓝方 jar 包名称
+     */
+    public MechEmpireEngine(String agentRedName, String agentBlueName) {
         engineWorld = new EngineWorld();
-        /**
-         * 红方指令消息队列生产者
-         */
+
         IProducer redCommandMessageProducer = new LocalCommandMessageProducer();
         injectProducerAndTeam(agentRedName, redCommandMessageProducer);
-        /**
-         * 蓝方指令消息队列生产者
-         */
+
         IProducer blueCommandMessageProducer = new LocalCommandMessageProducer();
         injectProducerAndTeam(agentBlueName, blueCommandMessageProducer);
+
         battleControl = new OneMechBattleControl(engineWorld, new CommandMessageReader());
     }
 
@@ -122,12 +136,11 @@ public class MechEmpireEngine implements IEngine {
      *
      * @param agentName              agent 名称
      * @param commandMessageProducer 消息生产者
-     * @throws Exception 异常
      */
-    private void injectProducerAndTeam(String agentName, IProducer commandMessageProducer) throws Exception {
+    private void injectProducerAndTeam(String agentName, IProducer commandMessageProducer) {
         commandMessageProducer.setQueue(commandMessageQueue);
         AbstractTeam team = this.newTeam(agentName);
-
+        assert null != team;
         for (AbstractGameMapComponent component : team.getMechList()) {
             AbstractMech mech = ClassCastUtil.cast(component);
             engineWorld.putComponent(mech.getId(), mech);
@@ -136,7 +149,8 @@ public class MechEmpireEngine implements IEngine {
             engineWorld.putComponent(mech.getWeapon().getId(), mech.getWeapon());
         }
 
-        IMechControlFlow controlFlow = MechControlFactory.getTeamControl(agentName);
+        IMechControlFlow controlFlow = this.getTeamControl(agentName);
+        assert null != controlFlow;
         threadPool.execute(() -> {
             try {
                 barrier.await();
@@ -152,20 +166,25 @@ public class MechEmpireEngine implements IEngine {
      *
      * @param agentName jar 包名称
      * @return 队伍对象
-     * @throws Exception 异常
      */
-    private AbstractTeam newTeam(String agentName) throws Exception {
-        URLClassLoader classLoader = AgentLoader.getAgentClassLoader(agentName);
-        Class<AbstractTeam> agentTeam = ClassCastUtil.cast(classLoader.loadClass(AGENT_TEAM_CLASS));
-        AbstractTeam team = agentTeam.newInstance();
-        List<AbstractMech> mechList = new ArrayList<>(4);
-        for (Class<?> clazz : team.getMechClassList()) {
-            AbstractMech mech = this.newMech(ClassCastUtil.cast(clazz));
-            mech.setTeam(team);
-            mechList.add(mech);
+    private AbstractTeam newTeam(String agentName) {
+        try {
+            URLClassLoader classLoader = AgentLoader.getAgentClassLoader(agentName);
+            Class<AbstractTeam> agentTeam = ClassCastUtil.cast(classLoader.loadClass(AGENT_TEAM_CLASS));
+            AbstractTeam team = agentTeam.newInstance();
+            List<AbstractMech> mechList = new ArrayList<>(4);
+            for (Class<?> clazz : team.getMechClassList()) {
+                AbstractMech mech = this.newMech(ClassCastUtil.cast(clazz));
+                mech.setTeam(team);
+                mechList.add(mech);
+            }
+            team.setMechList(mechList);
+            return team;
+        } catch (Exception e) {
+            log.error("new team exception: {}", e.getMessage(), e);
         }
-        team.setMechList(mechList);
-        return team;
+
+        return null;
     }
 
     /**
@@ -221,6 +240,24 @@ public class MechEmpireEngine implements IEngine {
         T component = componentClazz.newInstance();
         component.setId(componentCount++);
         return component;
+    }
+
+    /**
+     * 获取机甲主控制流类
+     *
+     * @param agentName jar 名称
+     * @return 机甲控制流
+     */
+    private IMechControlFlow getTeamControl(String agentName) {
+        try {
+            URLClassLoader classLoader = AgentLoader.getAgentClassLoader(agentName);
+            Class<?> agentTeam = classLoader.loadClass(AGENT_MAIN_CLASS);
+            return (IMechControlFlow) agentTeam.newInstance();
+        } catch (Exception e) {
+            log.error("getTeamControl error: {}", e.getMessage(), e);
+        }
+
+        return null;
     }
 
     /**

@@ -11,7 +11,7 @@ import java.util.Map;
  * @author <tairy> tairyguo@gmail.com
  * @date 2020/12/14 下午4:32
  */
-public class AgentLoader {
+class AgentLoader {
     /**
      * agent 文件目录
      */
@@ -29,7 +29,7 @@ public class AgentLoader {
      * @return 类加载器
      * @throws Exception 异常
      */
-    public static URLClassLoader getAgentClassLoader(String agentName) throws Exception {
+    static URLClassLoader getAgentClassLoader(String agentName) throws Exception {
         URLClassLoader classLoader = loaderCache.get(agentName);
         if (null == classLoader) {
             URL agentFileURL = new URL(AGENT_BASE_PATH + agentName);

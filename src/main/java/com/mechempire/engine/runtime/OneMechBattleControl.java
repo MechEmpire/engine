@@ -36,7 +36,7 @@ public class OneMechBattleControl implements IBattleControl {
 
     private CommandMessageReader commandMessageReader;
 
-    public OneMechBattleControl(EngineWorld engineWorld, CommandMessageReader commandMessageReader) {
+    OneMechBattleControl(EngineWorld engineWorld, CommandMessageReader commandMessageReader) {
         this.engineWorld = engineWorld;
         this.commandMessageReader = commandMessageReader;
     }

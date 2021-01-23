@@ -17,6 +17,7 @@ public class CommandMessageReader implements IByteReader {
     private byte[] commandSeq;
 
     public CommandMessageReader() {
+        this.offset = 0;
     }
 
     public CommandMessageReader(byte[] commandSeq) {
