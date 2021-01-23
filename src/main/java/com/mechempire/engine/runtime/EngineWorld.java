@@ -11,9 +11,10 @@ import java.util.Map;
  *
  * @author <tairy> tairyguo@gmail.com
  * @date 2020/12/15 下午4:29
+ * <p>
+ * 世界静态信息存储
  */
-//@Component
-public class EngineWorld extends AbstractWorld {
+class EngineWorld extends AbstractWorld {
 
     /**
      * 地图组件列表
@@ -27,7 +28,7 @@ public class EngineWorld extends AbstractWorld {
      * @param componentId 组件 ID
      * @param component   组件对象
      */
-    public void putComponent(int componentId, AbstractGameMapComponent component) {
+    void putComponent(int componentId, AbstractGameMapComponent component) {
 
         if (null == component || components.containsKey(componentId)) {
             return;
@@ -42,7 +43,7 @@ public class EngineWorld extends AbstractWorld {
      * @param componentId 组件 id
      * @return 组件对象
      */
-    public AbstractGameMapComponent getComponent(int componentId) {
+    AbstractGameMapComponent getComponent(int componentId) {
         return this.components.get(componentId);
     }
 
@@ -51,7 +52,7 @@ public class EngineWorld extends AbstractWorld {
      *
      * @return 组件 map
      */
-    public Map<Integer, AbstractGameMapComponent> getComponents() {
+    Map<Integer, AbstractGameMapComponent> getComponents() {
         return components;
     }
 }

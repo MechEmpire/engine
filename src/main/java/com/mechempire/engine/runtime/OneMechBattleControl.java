@@ -34,8 +34,11 @@ public class OneMechBattleControl implements IBattleControl {
      */
     private EngineWorld engineWorld;
 
-    public OneMechBattleControl(EngineWorld engineWorld) {
+    private CommandMessageReader commandMessageReader;
+
+    public OneMechBattleControl(EngineWorld engineWorld, CommandMessageReader commandMessageReader) {
         this.engineWorld = engineWorld;
+        this.commandMessageReader = commandMessageReader;
     }
 
     @Override
@@ -44,8 +47,6 @@ public class OneMechBattleControl implements IBattleControl {
         if (null == commandMessageList) {
             return;
         }
-
-        CommandMessageReader commandMessageReader = new CommandMessageReader();
 
         // 一次调用一帧
         for (CommandMessage commandMessage : commandMessageList) {

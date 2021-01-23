@@ -17,7 +17,7 @@ import java.util.List;
  * <p>
  * 队伍工厂类
  */
-public class TeamFactory {
+class TeamFactory {
 
     /**
      * team 类
@@ -31,17 +31,17 @@ public class TeamFactory {
      * @return team 对象
      * @throws Exception 异常
      */
-    public static AbstractTeam newTeam(String agentName) throws Exception {
-        URLClassLoader classLoader = AgentLoader.getAgentClassLoader(agentName);
-        Class<AbstractTeam> agentTeam = ClassCastUtil.cast(classLoader.loadClass(AGENT_TEAM_CLASS));
-        AbstractTeam team = agentTeam.newInstance();
-        List<AbstractMech> mechList = new ArrayList<>(4);
-        for (Class<?> clazz : team.getMechClassList()) {
-            AbstractMech mech = MechFactory.newMech(ClassCastUtil.cast(clazz));
-            mech.setTeam(team);
-            mechList.add(mech);
-        }
-        team.setMechList(mechList);
-        return team;
-    }
+//    static AbstractTeam newTeam(String agentName) throws Exception {
+//        URLClassLoader classLoader = AgentLoader.getAgentClassLoader(agentName);
+//        Class<AbstractTeam> agentTeam = ClassCastUtil.cast(classLoader.loadClass(AGENT_TEAM_CLASS));
+//        AbstractTeam team = agentTeam.newInstance();
+//        List<AbstractMech> mechList = new ArrayList<>(4);
+//        for (Class<?> clazz : team.getMechClassList()) {
+//            AbstractMech mech = MechFactory.newMech(ClassCastUtil.cast(clazz));
+//            mech.setTeam(team);
+//            mechList.add(mech);
+//        }
+//        team.setMechList(mechList);
+//        return team;
+//    }
 }

@@ -43,9 +43,9 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         nettyTCPSession = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
 
-        MechEmpireEngine engine = new MechEmpireEngine();
+        MechEmpireEngine engine = new MechEmpireEngine("agent_red.jar", "agent_blue.jar");
         engine.addWatchSession(nettyTCPSession);
-        engine.run("agent_red.jar", "agent_blue.jar");
+        engine.run();
 
         log.info("channel_active, channel_id: {}, session_id: {}", ctx.channel().id(), nettyTCPSession.getSessionId());
         NettyConfig.channelGroup.add(ctx.channel());

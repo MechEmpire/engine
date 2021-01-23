@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author <tairy> tairyguo@gmail.com
  * @date 2020/12/16 上午11:09
  */
-public class GameMapComponentFactory {
+class GameMapComponentFactory {
 
     /**
      * component 计数器
@@ -23,7 +23,7 @@ public class GameMapComponentFactory {
      * @param componentClazz 游戏组建对象类
      * @return 游戏组件对象
      */
-    public static <T extends AbstractGameMapComponent> T getComponent(Class<T> componentClazz) throws Exception {
+    static <T extends AbstractGameMapComponent> T getComponent(Class<T> componentClazz) throws Exception {
         if (null == componentClazz) {
             return null;
         }
