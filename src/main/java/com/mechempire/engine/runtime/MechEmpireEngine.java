@@ -1,8 +1,10 @@
 package com.mechempire.engine.runtime;
 
 import com.google.protobuf.Any;
+import com.mechempire.engine.constant.EngineConstant;
 import com.mechempire.engine.core.IBattleControl;
 import com.mechempire.engine.core.IEngine;
+import com.mechempire.engine.factory.EngineIdFactory;
 import com.mechempire.engine.network.session.NettySession;
 import com.mechempire.sdk.constant.RuntimeConstant;
 import com.mechempire.sdk.core.factory.PositionFactory;
@@ -44,11 +46,6 @@ public class MechEmpireEngine implements IEngine {
     private final BlockingQueue<AbstractMessage> commandMessageQueue = new LinkedBlockingQueue<>(20);
 
     /**
-     * 对战计算控制对象
-     */
-    private IBattleControl battleControl;
-
-    /**
      * 线程屏障, 保障所有游戏线程同时启动
      */
     private final CyclicBarrier barrier = new CyclicBarrier(4);
@@ -57,6 +54,11 @@ public class MechEmpireEngine implements IEngine {
      * 世界, 对战运行时数据记录
      */
     private EngineWorld engineWorld;
+
+    /**
+     * 对战计算控制对象
+     */
+    private IBattleControl battleControl;
 
     /**
      * 监听 sessions
@@ -78,6 +80,11 @@ public class MechEmpireEngine implements IEngine {
      */
     private Integer componentCount = 0;
 
+
+    private byte status = 0;
+
+    private int id = 0;
+
     /**
      * 线程池
      */
@@ -95,6 +102,9 @@ public class MechEmpireEngine implements IEngine {
      * @param agentBlueName 蓝方 jar 包名称
      */
     public MechEmpireEngine(String agentRedName, String agentBlueName) {
+        this.id = EngineIdFactory.getId();
+        this.status = EngineConstant.ENGINE_STATUS_CREATED;
+
         engineWorld = new EngineWorld();
 
         IProducer redCommandMessageProducer = new LocalCommandMessageProducer();
@@ -111,6 +121,7 @@ public class MechEmpireEngine implements IEngine {
      */
     @Override
     public void run() throws Exception {
+        this.status = EngineConstant.ENGINE_STATUS_RUNNING;
         new Thread(() -> {
             try {
                 commandMessageConsumer.setQueue(commandMessageQueue);

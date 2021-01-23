@@ -4,7 +4,6 @@ import com.mechempire.engine.network.NettyConfig;
 import com.mechempire.engine.network.session.NettyTCPSession;
 import com.mechempire.engine.network.session.SessionManager;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
-import com.mechempire.engine.runtime.MechEmpireEngine;
 import com.mechempire.sdk.proto.ResultMessageProto;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -43,9 +42,9 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         nettyTCPSession = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
 
-        MechEmpireEngine engine = new MechEmpireEngine("agent_red.jar", "agent_blue.jar");
-        engine.addWatchSession(nettyTCPSession);
-        engine.run();
+//        MechEmpireEngine engine = new MechEmpireEngine("agent_red.jar", "agent_blue.jar");
+//        engine.addWatchSession(nettyTCPSession);
+//        engine.run();
 
         log.info("channel_active, channel_id: {}, session_id: {}", ctx.channel().id(), nettyTCPSession.getSessionId());
         NettyConfig.channelGroup.add(ctx.channel());
@@ -61,6 +60,10 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
 
         if (req.getMessage().equals("ping")) {
             builder.setMessage("pong");
+        } else if (req.getMessage().equals("init")) {
+            // todo engine.init();
+        } else if (req.getMessage().equals("start")) {
+            // todo engine.run();
         } else {
             builder.setMessage(req.getMessage());
         }
