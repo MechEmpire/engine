@@ -16,6 +16,7 @@ import com.mechempire.sdk.proto.ResultMessageProto;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 import com.mechempire.sdk.util.ClassCastUtil;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URLClassLoader;
@@ -38,11 +39,13 @@ public class MechEmpireEngine implements IEngine {
     /**
      * 引擎 id
      */
+    @Getter
     private int id = 0;
 
     /**
      * 引擎状态
      */
+    @Getter
     private byte status = 0;
 
     /**
@@ -100,10 +103,6 @@ public class MechEmpireEngine implements IEngine {
      */
     private static final String AGENT_MAIN_CLASS = "com.mechempire.agent.AgentMain";
 
-    int getId() {
-        return id;
-    }
-
     /**
      * 线程池
      */
@@ -136,6 +135,11 @@ public class MechEmpireEngine implements IEngine {
      */
     @Override
     public void run() throws Exception {
+
+        if (this.status >= EngineConstant.ENGINE_STATUS_RUNNING) {
+            return;
+        }
+
         this.status = EngineConstant.ENGINE_STATUS_RUNNING;
         new Thread(() -> {
             try {
@@ -150,6 +154,11 @@ public class MechEmpireEngine implements IEngine {
 
     @Override
     public void close() throws Exception {
+
+        if (this.status >= EngineConstant.ENGINE_STATUS_CLOSED) {
+            return;
+        }
+
         engineWorld = null;
         redCommandMessageProducer = null;
         blueCommandMessageProducer = null;
@@ -308,7 +317,7 @@ public class MechEmpireEngine implements IEngine {
                 long startTime = System.currentTimeMillis();
                 int frameCount = 0;
 
-                while (frameCount <= 500000) {
+                while (frameCount <= 500000 && this.status == EngineConstant.ENGINE_STATUS_RUNNING) {
                     CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
                     if (null != commandMessage) {
                         messagesPerFrame.add(commandMessage);
@@ -345,6 +354,7 @@ public class MechEmpireEngine implements IEngine {
 
                     messagesPerFrame.clear();
                     frameCount++;
+                    System.out.println(frameCount);
                 }
             } catch (Exception e) {
                 log.error("execute consumer thread error: {}", e.getMessage(), e);

@@ -1,5 +1,7 @@
 package com.mechempire.engine.network.session;
 
+import io.netty.channel.ChannelId;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,35 +13,37 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class SessionManager {
 
-    private static volatile SessionManager instance = null;
+    private static Map<ChannelId, NettySession> sessionIdMap = new ConcurrentHashMap<>(16);
 
-    private Map<Long, NettySession> sessionIdMap;
-
-    private SessionManager() {
-        this.sessionIdMap = new ConcurrentHashMap<>();
-    }
-
-    public static SessionManager getInstance() {
-        if (null == instance) {
-            synchronized (SessionManager.class) {
-                if (null == instance) {
-                    instance = new SessionManager();
-                }
-            }
-        }
-
-        return instance;
-    }
-
-    public NettySession findBySessionId(Long id) {
+    /**
+     * 获取会话对象
+     *
+     * @param id id
+     * @return 会话对象
+     */
+    public static NettySession getSession(ChannelId id) {
         return sessionIdMap.get(id);
     }
 
-    public void put(Long id, NettySession session) {
+    /**
+     * 添加 session
+     *
+     * @param id      id
+     * @param session session
+     */
+    public static void addSession(ChannelId id, NettySession session) {
+        if (null == session) {
+            return;
+        }
         sessionIdMap.put(id, session);
     }
 
-    public void removeBySessionId(Long id) {
+    /**
+     * 移除 session
+     *
+     * @param id id
+     */
+    public static void removeBySessionId(ChannelId id) {
         sessionIdMap.remove(id);
     }
 }

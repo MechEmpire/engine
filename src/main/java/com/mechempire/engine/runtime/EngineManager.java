@@ -41,4 +41,13 @@ public class EngineManager {
     public static MechEmpireEngine getEngine(Integer id) {
         return engineTable.get(id);
     }
+
+    /**
+     * 移除 engine
+     *
+     * @param id id
+     */
+    public static void removeEngine(Integer id) {
+        engineTable.remove(id);
+    }
 }

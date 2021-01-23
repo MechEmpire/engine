@@ -1,6 +1,5 @@
 package com.mechempire.engine.network.handles;
 
-import com.mechempire.engine.network.NettyConfig;
 import com.mechempire.engine.network.session.NettyTCPSession;
 import com.mechempire.engine.network.session.SessionManager;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
@@ -15,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+import java.io.IOException;
 
 /**
  * package: com.mechempire.engine.server.handles
@@ -28,22 +28,16 @@ import javax.annotation.Resource;
 public class GameServerHandler extends ChannelInboundHandlerAdapter {
 
     /**
-     * client session
-     */
-    private NettyTCPSession nettyTCPSession;
-
-    @Resource
-    private SessionManager sessionManager;
-    /**
      * session builder
      */
     @Resource
     private NettyTCPSessionBuilder nettyTCPSessionBuilder;
 
+    private ResultMessageProto.CommonData.Builder builder = ResultMessageProto.CommonData.newBuilder();
+
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        log.info("channel_active, channel_id: {}, session_id: {}", ctx.channel().id(), nettyTCPSession.getSessionId());
-        NettyConfig.channelGroup.add(ctx.channel());
+        log.info("channel_active, channel_id: {}", ctx.channel().id());
         ctx.flush();
         super.channelActive(ctx);
     }
@@ -52,7 +46,8 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ResultMessageProto.CommonData req = (ResultMessageProto.CommonData) msg;
         log.info("server receiver: " + req.getMessage());
-        ResultMessageProto.CommonData.Builder builder = ResultMessageProto.CommonData.newBuilder();
+        builder = ResultMessageProto.CommonData.newBuilder();
+        NettyTCPSession session = null;
 
         switch (req.getMessage()) {
             case "ping":
@@ -60,12 +55,18 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
                 break;
             case "init":
                 MechEmpireEngine engine = new MechEmpireEngine("agent_red.jar", "agent_blue.jar");
-                nettyTCPSession = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
-                engine.addWatchSession(nettyTCPSession);
+                session = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
+                SessionManager.addSession(ctx.channel().id(), session);
+                engine.addWatchSession(session);
+                session.setEngine(engine);
                 EngineManager.addEngine(engine);
+                builder.setMessage("init");
                 break;
             case "start":
-                // todo engine.run();
+                session = (NettyTCPSession) SessionManager.getSession(ctx.channel().id());
+                session.getEngine().run();
+                log.info("session_status: {}", session.getEngine().getStatus());
+                builder.setMessage("started");
                 break;
             default:
                 builder.setMessage(req.getMessage());
@@ -83,34 +84,15 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
-        NettyConfig.channelGroup.remove(ctx.channel());
-        ctx.flush();
-        ctx.close();
-//        if (null != nettyTCPSession) {
-//            ctx.flush();
-//            ctx.close();
-//        }
+        closeAndClear(ctx);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.error("game server error: {}", cause.getMessage(), cause);
-        ctx.flush();
-        ctx.close();
-    }
-
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-//        if (!(evt instanceof IdleStateEvent)) {
-//            return;
-//        }
-//
-//        IdleStateEvent e = (IdleStateEvent) evt;
-//        if (e.state() == IdleState.READER_IDLE) {
-//            ctx.flush();
-//            ctx.close();
-//            log.info("disconnection due to inbound traffic.");
-//        }
+        if (!(cause instanceof IOException)) {
+            log.error("game server error: {}", cause.getMessage(), cause);
+        }
+        closeAndClear(ctx);
     }
 
     /**
@@ -123,5 +105,24 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
             channel.flush();
             channel.close();
         }
+    }
+
+    /**
+     * 清除 session
+     *
+     * @param ctx ctx
+     * @throws Exception 异常
+     */
+    private void closeAndClear(ChannelHandlerContext ctx) throws Exception {
+        NettyTCPSession session = (NettyTCPSession) SessionManager.getSession(ctx.channel().id());
+
+        if (null != session) {
+            session.getEngine().close();
+            EngineManager.removeEngine(session.getEngine().getId());
+            SessionManager.removeBySessionId(ctx.channel().id());
+        }
+
+        ctx.flush();
+        ctx.close();
     }
 }
