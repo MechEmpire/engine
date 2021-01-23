@@ -5,7 +5,7 @@ import com.mechempire.engine.network.session.SessionManager;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
 import com.mechempire.engine.runtime.EngineManager;
 import com.mechempire.engine.runtime.MechEmpireEngine;
-import com.mechempire.sdk.proto.ResultMessageProto;
+import com.mechempire.sdk.proto.CommonDataProto;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -33,7 +33,7 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     @Resource
     private NettyTCPSessionBuilder nettyTCPSessionBuilder;
 
-    private ResultMessageProto.CommonData.Builder builder = ResultMessageProto.CommonData.newBuilder();
+    private CommonDataProto.CommonData.Builder builder = CommonDataProto.CommonData.newBuilder();
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -44,9 +44,9 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        ResultMessageProto.CommonData req = (ResultMessageProto.CommonData) msg;
+        CommonDataProto.CommonData req = (CommonDataProto.CommonData) msg;
         log.info("server receiver: " + req.getMessage());
-        builder = ResultMessageProto.CommonData.newBuilder();
+        builder = CommonDataProto.CommonData.newBuilder();
         NettyTCPSession session = null;
 
         switch (req.getMessage()) {

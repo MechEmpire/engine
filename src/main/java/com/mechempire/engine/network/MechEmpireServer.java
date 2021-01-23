@@ -4,7 +4,7 @@ import com.mechempire.engine.constant.ServerConstant;
 import com.mechempire.engine.core.IServer;
 import com.mechempire.engine.network.handles.GameServerHandler;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
-import com.mechempire.sdk.proto.ResultMessageProto;
+import com.mechempire.sdk.proto.CommonDataProto;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -70,7 +70,7 @@ public class MechEmpireServer implements IServer {
                             socketChannel.pipeline().addLast(new IdleStateHandler(5, 5, 5));
                             // 添加 ProtobufVarint32FrameDecoder，主要用于 Protobuf 半包处理
                             socketChannel.pipeline().addLast(new ProtobufVarint32FrameDecoder());
-                            socketChannel.pipeline().addLast(new ProtobufDecoder(ResultMessageProto.CommonData.getDefaultInstance()));
+                            socketChannel.pipeline().addLast(new ProtobufDecoder(CommonDataProto.CommonData.getDefaultInstance()));
                             socketChannel.pipeline().addLast(new ProtobufVarint32LengthFieldPrepender());
                             socketChannel.pipeline().addLast(new ProtobufEncoder());
                             socketChannel.pipeline().addLast(gameServerHandler);

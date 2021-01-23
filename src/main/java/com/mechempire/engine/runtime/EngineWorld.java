@@ -2,6 +2,7 @@ package com.mechempire.engine.runtime;
 
 import com.mechempire.sdk.core.game.AbstractGameMapComponent;
 import com.mechempire.sdk.core.game.AbstractWorld;
+import lombok.Getter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,6 +21,12 @@ class EngineWorld extends AbstractWorld {
      * 地图组件列表
      */
     private final Map<Integer, AbstractGameMapComponent> components = new HashMap<>(16);
+
+    /**
+     * map 名称
+     */
+    @Getter
+    private final String mapName = "map_v1.tmx";
 
     /**
      * 给 world 中添加组件

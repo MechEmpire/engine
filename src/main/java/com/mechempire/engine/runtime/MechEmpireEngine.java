@@ -12,7 +12,7 @@ import com.mechempire.sdk.core.game.*;
 import com.mechempire.sdk.core.message.AbstractMessage;
 import com.mechempire.sdk.core.message.IConsumer;
 import com.mechempire.sdk.core.message.IProducer;
-import com.mechempire.sdk.proto.ResultMessageProto;
+import com.mechempire.sdk.proto.CommonDataProto;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 import com.mechempire.sdk.util.ClassCastUtil;
@@ -329,21 +329,21 @@ public class MechEmpireEngine implements IEngine {
                     }
                     battleControl.battle(messagesPerFrame);
 
-                    ResultMessageProto.ResultMessageList.Builder resultMessages =
-                            ResultMessageProto.ResultMessageList.newBuilder();
+                    CommonDataProto.ResultMessageList.Builder resultMessages =
+                            CommonDataProto.ResultMessageList.newBuilder();
 
                     engineWorld.getComponents().forEach((k, v) -> {
                         AbstractPosition position = v.getPosition();
-                        ResultMessageProto.ResultMessage.Builder builder =
-                                ResultMessageProto.ResultMessage.newBuilder();
+                        CommonDataProto.ResultMessage.Builder builder =
+                                CommonDataProto.ResultMessage.newBuilder();
                         builder.setComponentId(v.getId())
                                 .setPositionX(position.getX())
                                 .setPositionY(position.getY());
                         resultMessages.addResultMessage(builder.build());
                     });
 
-                    ResultMessageProto.CommonData.Builder commonDataBuilder =
-                            ResultMessageProto.CommonData.newBuilder();
+                    CommonDataProto.CommonData.Builder commonDataBuilder =
+                            CommonDataProto.CommonData.newBuilder();
 
                     commonDataBuilder.setData(Any.pack(resultMessages.build()));
                     commonDataBuilder.setMessage("battle_result_message");
@@ -354,7 +354,6 @@ public class MechEmpireEngine implements IEngine {
 
                     messagesPerFrame.clear();
                     frameCount++;
-                    System.out.println(frameCount);
                 }
             } catch (Exception e) {
                 log.error("execute consumer thread error: {}", e.getMessage(), e);
