@@ -9,6 +9,11 @@ package com.mechempire.engine.core;
 public interface IEngine {
 
     /**
+     * init engine
+     */
+    void init() throws Exception;
+
+    /**
      * run engine.
      */
     void run() throws Exception;

@@ -15,6 +15,15 @@
 
     <dependencies>
         <dependency>
+            <!-- maven 仓库的这个包有 bug，加载不到地图文件 -->
+            <groupId>org.mapeditor</groupId>
+            <artifactId>libtiled</artifactId>
+            <version>1.2.3</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/resources/lib/libtiled-1.2.3-SNAPSHOT.jar</systemPath>
+        </dependency>
+        
+        <dependency>
             <groupId>com.mechempire</groupId>
             <artifactId>sdk</artifactId>
             <version>1.0-SNAPSHOT</version>

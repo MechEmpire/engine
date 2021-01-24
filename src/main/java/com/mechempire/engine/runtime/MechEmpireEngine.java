@@ -17,6 +17,7 @@ import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 import com.mechempire.sdk.util.ClassCastUtil;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URLClassLoader;
@@ -47,6 +48,12 @@ public class MechEmpireEngine implements IEngine {
      */
     @Getter
     private byte status = 0;
+
+    @Setter
+    private String agentRedName;
+
+    @Setter
+    private String agentBlueName;
 
     /**
      * 组件数
@@ -81,6 +88,7 @@ public class MechEmpireEngine implements IEngine {
     /**
      * 世界, 对战运行时数据记录
      */
+    @Getter
     private EngineWorld engineWorld;
 
     /**
@@ -112,14 +120,8 @@ public class MechEmpireEngine implements IEngine {
                     new LinkedBlockingQueue<Runnable>(4)
             );
 
-
-    /**
-     * 引擎构造函数
-     *
-     * @param agentRedName  红方 jar 包名称
-     * @param agentBlueName 蓝方 jar 包名称
-     */
-    public MechEmpireEngine(String agentRedName, String agentBlueName) {
+    @Override
+    public void init() throws Exception {
         this.id = EngineIdFactory.getId();
         this.status = EngineConstant.ENGINE_STATUS_CREATED;
         redCommandMessageProducer = new LocalCommandMessageProducer();
@@ -350,6 +352,7 @@ public class MechEmpireEngine implements IEngine {
 
                     watchSessions.forEach((s) -> {
                         s.getChannel().writeAndFlush(commonDataBuilder.build());
+                        commonDataBuilder.clear();
                     });
 
                     messagesPerFrame.clear();

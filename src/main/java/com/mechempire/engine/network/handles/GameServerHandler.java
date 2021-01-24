@@ -54,7 +54,16 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
                 builder.setMessage("pong");
                 break;
             case "init":
-                MechEmpireEngine engine = new MechEmpireEngine("agent_red.jar", "agent_blue.jar");
+                MechEmpireEngine engine = new MechEmpireEngine();
+                engine.setAgentRedName("agent_red.jar");
+                engine.setAgentBlueName("agent_blue.jar");
+                engine.init();
+
+                CommonDataProto.InitRequest initRequest =
+                        req.getData().unpack(CommonDataProto.InitRequest.class);
+                double windowSize = initRequest.getScreenHeight() >= 900 ? 1280 : 640;
+                engine.getEngineWorld().setWindowHeight(windowSize);
+                engine.getEngineWorld().setWindowWidth(windowSize);
                 session = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
                 SessionManager.addSession(ctx.channel().id(), session);
                 engine.addWatchSession(session);
@@ -65,7 +74,6 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
             case "start":
                 session = (NettyTCPSession) SessionManager.getSession(ctx.channel().id());
                 session.getEngine().run();
-                log.info("session_status: {}", session.getEngine().getStatus());
                 builder.setMessage("started");
                 break;
             default:
@@ -74,6 +82,7 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
         }
 
         ctx.writeAndFlush(builder.build());
+        builder.clear();
     }
 
     @Override
