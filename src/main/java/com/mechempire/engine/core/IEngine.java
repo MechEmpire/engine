@@ -22,4 +22,14 @@ public interface IEngine {
      * close engine.
      */
     void close() throws Exception;
+
+    boolean isClosed();
+
+    boolean isIdle();
+
+    boolean isOccupied();
+
+    boolean switchIdle();
+
+    boolean switchOccupied();
 }

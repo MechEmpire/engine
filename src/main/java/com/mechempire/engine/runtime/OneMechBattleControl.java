@@ -2,6 +2,7 @@ package com.mechempire.engine.runtime;
 
 import com.google.common.collect.ImmutableMap;
 import com.mechempire.engine.core.IBattleControl;
+import com.mechempire.engine.runtime.engine.EngineWorld;
 import com.mechempire.sdk.core.game.AbstractMech;
 import com.mechempire.sdk.core.game.AbstractPosition;
 import com.mechempire.sdk.core.game.AbstractVehicle;
@@ -36,7 +37,7 @@ public class OneMechBattleControl implements IBattleControl {
 
     private CommandMessageReader commandMessageReader;
 
-    OneMechBattleControl(EngineWorld engineWorld, CommandMessageReader commandMessageReader) {
+    public OneMechBattleControl(EngineWorld engineWorld, CommandMessageReader commandMessageReader) {
         this.engineWorld = engineWorld;
         this.commandMessageReader = commandMessageReader;
     }

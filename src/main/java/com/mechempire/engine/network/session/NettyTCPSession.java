@@ -1,6 +1,6 @@
 package com.mechempire.engine.network.session;
 
-import com.mechempire.engine.runtime.MechEmpireEngine;
+import com.mechempire.engine.runtime.engine.Engine;
 import com.mechempire.engine.util.LongIdGeneratorUtil;
 import io.netty.channel.Channel;
 import lombok.Getter;
@@ -21,7 +21,7 @@ public class NettyTCPSession extends NettySession {
 
     @Setter
     @Getter
-    private MechEmpireEngine engine;
+    private Engine engine;
 
     public NettyTCPSession(Channel channel) {
         super(channel);

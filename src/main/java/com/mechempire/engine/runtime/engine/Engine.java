@@ -1,11 +1,16 @@
-package com.mechempire.engine.runtime;
+package com.mechempire.engine.runtime.engine;
 
 import com.google.protobuf.Any;
-import com.mechempire.engine.constant.EngineConstant;
+import com.mechempire.engine.constant.EngineStatus;
 import com.mechempire.engine.core.IBattleControl;
 import com.mechempire.engine.core.IEngine;
 import com.mechempire.engine.factory.EngineIdFactory;
 import com.mechempire.engine.network.session.NettySession;
+import com.mechempire.engine.runtime.AgentLoader;
+import com.mechempire.engine.runtime.CommandMessageReader;
+import com.mechempire.engine.runtime.LocalCommandMessageConsumer;
+import com.mechempire.engine.runtime.OneMechBattleControl;
+import com.mechempire.engine.util.UnsafeUtil;
 import com.mechempire.sdk.constant.RuntimeConstant;
 import com.mechempire.sdk.core.factory.PositionFactory;
 import com.mechempire.sdk.core.game.*;
@@ -19,6 +24,7 @@ import com.mechempire.sdk.util.ClassCastUtil;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import sun.misc.Unsafe;
 
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -35,7 +41,7 @@ import java.util.concurrent.*;
  * 机甲帝国对战引擎
  */
 @Slf4j
-public class MechEmpireEngine implements IEngine {
+public class Engine implements IEngine {
 
     /**
      * 引擎 id
@@ -47,11 +53,21 @@ public class MechEmpireEngine implements IEngine {
      * 引擎状态
      */
     @Getter
-    private byte status = 0;
+    private EngineStatus status;
 
+    private long idleStartTime;
+
+    private long usageCount;
+
+    /**
+     * 红方 agent 名称
+     */
     @Setter
     private String agentRedName;
 
+    /**
+     * 蓝方 agent 名称
+     */
     @Setter
     private String agentBlueName;
 
@@ -84,6 +100,16 @@ public class MechEmpireEngine implements IEngine {
      * 线程屏障, 保障所有游戏线程同时启动
      */
     private final CyclicBarrier barrier = new CyclicBarrier(4);
+
+    /**
+     * unsafe, 用于修改引擎状态值
+     */
+    private static Unsafe unsafe = UnsafeUtil.unsafe;
+
+    /**
+     * statusOffset
+     */
+    private static long statusOffset = UnsafeUtil.getFieldOffset(Engine.class, "status");
 
     /**
      * 世界, 对战运行时数据记录
@@ -123,7 +149,7 @@ public class MechEmpireEngine implements IEngine {
     @Override
     public void init() throws Exception {
         this.id = EngineIdFactory.getId();
-        this.status = EngineConstant.ENGINE_STATUS_CREATED;
+        this.status = EngineStatus.CREATED;
         redCommandMessageProducer = new LocalCommandMessageProducer();
         blueCommandMessageProducer = new LocalCommandMessageProducer();
         engineWorld = new EngineWorld();
@@ -132,17 +158,9 @@ public class MechEmpireEngine implements IEngine {
         battleControl = new OneMechBattleControl(engineWorld, new CommandMessageReader());
     }
 
-    /**
-     * 引擎启动方法
-     */
     @Override
     public void run() throws Exception {
-
-        if (this.status >= EngineConstant.ENGINE_STATUS_RUNNING) {
-            return;
-        }
-
-        this.status = EngineConstant.ENGINE_STATUS_RUNNING;
+        this.status = EngineStatus.OCCUPIED;
         new Thread(() -> {
             try {
                 commandMessageConsumer.setQueue(commandMessageQueue);
@@ -156,16 +174,46 @@ public class MechEmpireEngine implements IEngine {
 
     @Override
     public void close() throws Exception {
-
-        if (this.status >= EngineConstant.ENGINE_STATUS_CLOSED) {
-            return;
-        }
-
         engineWorld = null;
         redCommandMessageProducer = null;
         blueCommandMessageProducer = null;
         battleControl = null;
-        this.status = EngineConstant.ENGINE_STATUS_CLOSED;
+        this.status = EngineStatus.CLOSED;
+    }
+
+    @Override
+    public boolean isClosed() {
+        return this.status == EngineStatus.CLOSED;
+    }
+
+    @Override
+    public boolean isIdle() {
+        return this.status == EngineStatus.IDLE;
+    }
+
+    @Override
+    public boolean isOccupied() {
+        return this.status == EngineStatus.OCCUPIED;
+    }
+
+    @Override
+    public boolean switchIdle() {
+        return unsafe.compareAndSwapObject(this, statusOffset, status, EngineStatus.IDLE) && flushIdleStartTime();
+    }
+
+    @Override
+    public boolean switchOccupied() {
+        return unsafe.compareAndSwapObject(this, statusOffset, status, EngineStatus.OCCUPIED) && flushUsageCount();
+    }
+
+    public boolean flushIdleStartTime() {
+        idleStartTime = System.currentTimeMillis();
+        return true;
+    }
+
+    public boolean flushUsageCount() {
+        usageCount += 1;
+        return true;
     }
 
     /**
@@ -319,7 +367,7 @@ public class MechEmpireEngine implements IEngine {
                 long startTime = System.currentTimeMillis();
                 int frameCount = 0;
 
-                while (frameCount <= 500000 && this.status == EngineConstant.ENGINE_STATUS_RUNNING) {
+                while (frameCount <= 500000 && this.status == EngineStatus.OCCUPIED) {
                     CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
                     if (null != commandMessage) {
                         messagesPerFrame.add(commandMessage);

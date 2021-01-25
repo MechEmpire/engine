@@ -3,8 +3,8 @@ package com.mechempire.engine.network.handles;
 import com.mechempire.engine.network.session.NettyTCPSession;
 import com.mechempire.engine.network.session.SessionManager;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
-import com.mechempire.engine.runtime.EngineManager;
-import com.mechempire.engine.runtime.MechEmpireEngine;
+import com.mechempire.engine.runtime.engine.EngineManager;
+import com.mechempire.engine.runtime.engine.Engine;
 import com.mechempire.sdk.proto.CommonDataProto;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -54,7 +54,7 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
                 builder.setMessage("pong");
                 break;
             case "init":
-                MechEmpireEngine engine = new MechEmpireEngine();
+                Engine engine = new Engine();
                 engine.setAgentRedName("agent_red.jar");
                 engine.setAgentBlueName("agent_blue.jar");
                 engine.init();

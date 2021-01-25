@@ -1,4 +1,4 @@
-package com.mechempire.engine.runtime;
+package com.mechempire.engine.runtime.engine;
 
 import com.mechempire.sdk.core.game.AbstractGameMapComponent;
 import com.mechempire.sdk.core.game.AbstractWorld;
@@ -104,7 +104,7 @@ public class EngineWorld extends AbstractWorld {
      * @param componentId 组件 id
      * @return 组件对象
      */
-    AbstractGameMapComponent getComponent(int componentId) {
+    public AbstractGameMapComponent getComponent(int componentId) {
         return this.components.get(componentId);
     }
 }

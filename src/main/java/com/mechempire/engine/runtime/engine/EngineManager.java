@@ -1,4 +1,6 @@
-package com.mechempire.engine.runtime;
+package com.mechempire.engine.runtime.engine;
+
+import com.mechempire.engine.runtime.engine.Engine;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,14 +18,14 @@ public class EngineManager {
     /**
      * 存储对战引擎
      */
-    private static Map<Integer, MechEmpireEngine> engineTable = new ConcurrentHashMap<>(16);
+    private static Map<Integer, Engine> engineTable = new ConcurrentHashMap<>(16);
 
     /**
      * 添加引擎
      *
      * @param empireEngine 引擎对象
      */
-    public static void addEngine(MechEmpireEngine empireEngine) {
+    public static void addEngine(Engine empireEngine) {
 
         if (null == empireEngine) {
             return;
@@ -38,7 +40,7 @@ public class EngineManager {
      * @param id id
      * @return 引擎对象
      */
-    public static MechEmpireEngine getEngine(Integer id) {
+    public static Engine getEngine(Integer id) {
         return engineTable.get(id);
     }
 
