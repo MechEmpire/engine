@@ -1,5 +1,6 @@
 package com.mechempire.engine.runtime.engine;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.Any;
 import com.mechempire.engine.constant.EngineStatus;
 import com.mechempire.engine.core.IBattleControl;
@@ -12,6 +13,7 @@ import com.mechempire.engine.runtime.LocalCommandMessageConsumer;
 import com.mechempire.engine.runtime.OneMechBattleControl;
 import com.mechempire.engine.util.UnsafeUtil;
 import com.mechempire.sdk.constant.RuntimeConstant;
+import com.mechempire.sdk.constant.TeamAffinity;
 import com.mechempire.sdk.core.factory.PositionFactory;
 import com.mechempire.sdk.core.game.*;
 import com.mechempire.sdk.core.message.AbstractMessage;
@@ -30,6 +32,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.*;
 
 /**
@@ -104,12 +107,12 @@ public class Engine implements IEngine {
     /**
      * unsafe, 用于修改引擎状态值
      */
-    private static Unsafe unsafe = UnsafeUtil.unsafe;
+    private static final Unsafe unsafe = UnsafeUtil.unsafe;
 
     /**
      * statusOffset
      */
-    private static long statusOffset = UnsafeUtil.getFieldOffset(Engine.class, "status");
+    private static final long statusOffset = UnsafeUtil.getFieldOffset(Engine.class, "status");
 
     /**
      * 世界, 对战运行时数据记录
@@ -125,7 +128,7 @@ public class Engine implements IEngine {
     /**
      * 监听 sessions
      */
-    private List<NettySession> watchSessions = new LinkedList<>();
+    private final List<NettySession> watchSessions = new LinkedList<>();
 
     /**
      * 用户 jar 包中的 team 类名
@@ -153,8 +156,8 @@ public class Engine implements IEngine {
         redCommandMessageProducer = new LocalCommandMessageProducer();
         blueCommandMessageProducer = new LocalCommandMessageProducer();
         engineWorld = new EngineWorld();
-        injectProducerAndTeam(agentRedName, redCommandMessageProducer);
-        injectProducerAndTeam(agentBlueName, blueCommandMessageProducer);
+        injectProducerAndTeam(agentRedName, redCommandMessageProducer, TeamAffinity.RED);
+        injectProducerAndTeam(agentBlueName, blueCommandMessageProducer, TeamAffinity.BLUE);
         battleControl = new OneMechBattleControl(engineWorld, new CommandMessageReader());
     }
 
@@ -230,11 +233,13 @@ public class Engine implements IEngine {
      *
      * @param agentName              agent 名称
      * @param commandMessageProducer 消息生产者
+     * @param teamAffinity           队伍属性, 红 or 蓝
      */
-    private void injectProducerAndTeam(String agentName, IProducer commandMessageProducer) {
+    private void injectProducerAndTeam(String agentName, IProducer commandMessageProducer, TeamAffinity teamAffinity) {
         commandMessageProducer.setQueue(commandMessageQueue);
-        AbstractTeam team = this.newTeam(agentName);
+        AbstractTeam team = newTeam(agentName, teamAffinity);
         assert null != team;
+        // init component
         for (AbstractGameMapComponent component : team.getMechList()) {
             AbstractMech mech = ClassCastUtil.cast(component);
             engineWorld.putComponent(mech.getId(), mech);
@@ -258,20 +263,22 @@ public class Engine implements IEngine {
     /**
      * 创建队伍
      *
-     * @param agentName jar 包名称
+     * @param agentName    jar 包名称
+     * @param teamAffinity 队伍属性, 红 or 蓝
      * @return 队伍对象
      */
-    private AbstractTeam newTeam(String agentName) {
+    private AbstractTeam newTeam(String agentName, TeamAffinity teamAffinity) {
         try {
             URLClassLoader classLoader = AgentLoader.getAgentClassLoader(agentName);
             Class<AbstractTeam> agentTeam = ClassCastUtil.cast(classLoader.loadClass(AGENT_TEAM_CLASS));
             AbstractTeam team = agentTeam.newInstance();
-            List<AbstractMech> mechList = new ArrayList<>(4);
+            List<AbstractMech> mechList = Lists.newArrayList();
             for (Class<?> clazz : team.getMechClassList()) {
-                AbstractMech mech = this.newMech(ClassCastUtil.cast(clazz));
+                AbstractMech mech = newMech(ClassCastUtil.cast(clazz), teamAffinity);
                 mech.setTeam(team);
                 mechList.add(mech);
             }
+            team.setTeamAffinity(teamAffinity);
             team.setMechList(mechList);
             return team;
         } catch (Exception e) {
@@ -289,13 +296,22 @@ public class Engine implements IEngine {
      * @return 新机甲对象
      * @throws Exception 异常
      */
-    private <M extends AbstractMech> M newMech(Class<M> mechClazz) throws Exception {
-        M mech = this.getComponent(mechClazz);
-        mech.setStartY(64.0);
-        mech.setStartX(64.0);
+    private <M extends AbstractMech> M newMech(Class<M> mechClazz, TeamAffinity teamAffinity) throws Exception {
+        M mech = this.createComponent(mechClazz);
+        assert mech != null;
+
+        // set start point of mech
+        if (teamAffinity.equals(TeamAffinity.RED)) {
+            mech.setStartX(32.0);
+            mech.setStartY(1140.0);
+        } else {
+            mech.setStartX(1140.0);
+            mech.setStartY(32.0);
+        }
 
         // 装配载具, 设置所属机甲,大小
-        AbstractVehicle vehicle = this.getComponent(ClassCastUtil.cast(mech.getVehicleClazz()));
+        AbstractVehicle vehicle = createComponent(ClassCastUtil.cast(mech.getVehicleClazz()));
+        assert vehicle != null;
         vehicle.setStartY(mech.getStartX());
         vehicle.setStartY(mech.getStartY());
         vehicle.setMech(mech);
@@ -304,12 +320,14 @@ public class Engine implements IEngine {
         mech.setVehicle(vehicle);
 
         // 装配武器, 设置所属机甲
-        AbstractWeapon weapon = this.getComponent(ClassCastUtil.cast(mech.getWeaponClazz()));
+        AbstractWeapon weapon = createComponent(ClassCastUtil.cast(mech.getWeaponClazz()));
+        assert weapon != null;
         weapon.setMech(mech);
         mech.setWeapon(weapon);
 
         // 装配弹药, 设置所属机甲
-        AbstractAmmunition ammunition = this.getComponent(ClassCastUtil.cast(mech.getAmmunitionClazz()));
+        AbstractAmmunition ammunition = createComponent(ClassCastUtil.cast(mech.getAmmunitionClazz()));
+        assert ammunition != null;
         ammunition.setMech(mech);
         mech.setAmmunition(ammunition);
 
@@ -327,8 +345,8 @@ public class Engine implements IEngine {
      * @return 新组件
      * @throws Exception 异常
      */
-    private <T extends AbstractGameMapComponent> T getComponent(Class<T> componentClazz) throws Exception {
-        if (null == componentClazz) {
+    private <T extends AbstractGameMapComponent> T createComponent(Class<T> componentClazz) throws Exception {
+        if (Objects.isNull(componentClazz)) {
             return null;
         }
         T component = componentClazz.newInstance();
@@ -365,37 +383,42 @@ public class Engine implements IEngine {
                 barrier.await();
                 List<CommandMessage> messagesPerFrame = new ArrayList<>(40);
                 long startTime = System.currentTimeMillis();
-                int frameCount = 0;
 
-                while (frameCount <= 500000 && this.status == EngineStatus.OCCUPIED) {
+                CommonDataProto.ResultMessageList.Builder resultMessageListBuilder =
+                        CommonDataProto.ResultMessageList.newBuilder();
+
+                CommonDataProto.ResultMessage.Builder resultMessageBuilder =
+                        CommonDataProto.ResultMessage.newBuilder();
+
+                CommonDataProto.CommonData.Builder commonDataBuilder =
+                        CommonDataProto.CommonData.newBuilder();
+
+                // todo 修改为定时器
+                while (this.status == EngineStatus.OCCUPIED) {
                     CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
-                    if (null != commandMessage) {
+                    if (Objects.nonNull(commandMessage)) {
                         messagesPerFrame.add(commandMessage);
                     }
 
+                    long now = System.currentTimeMillis();
                     // each frame
-                    if (0 != (System.currentTimeMillis() - startTime) % RuntimeConstant.FRAME_GAP) {
+                    if (0 != (now - startTime) % RuntimeConstant.FRAME_GAP) {
                         continue;
                     }
                     battleControl.battle(messagesPerFrame);
-
-                    CommonDataProto.ResultMessageList.Builder resultMessages =
-                            CommonDataProto.ResultMessageList.newBuilder();
+                    resultMessageListBuilder.clear();
 
                     engineWorld.getComponents().forEach((k, v) -> {
                         AbstractPosition position = v.getPosition();
-                        CommonDataProto.ResultMessage.Builder builder =
-                                CommonDataProto.ResultMessage.newBuilder();
-                        builder.setComponentId(v.getId())
+                        resultMessageBuilder.clear();
+                        resultMessageBuilder.setComponentId(v.getId())
                                 .setPositionX(position.getX())
                                 .setPositionY(position.getY());
-                        resultMessages.addResultMessage(builder.build());
+                        resultMessageListBuilder.addResultMessage(resultMessageBuilder.build());
                     });
 
-                    CommonDataProto.CommonData.Builder commonDataBuilder =
-                            CommonDataProto.CommonData.newBuilder();
-
-                    commonDataBuilder.setData(Any.pack(resultMessages.build()));
+                    commonDataBuilder.clear();
+                    commonDataBuilder.setData(Any.pack(resultMessageListBuilder.build()));
                     commonDataBuilder.setMessage("battle_result_message");
 
                     watchSessions.forEach((s) -> {
@@ -404,7 +427,6 @@ public class Engine implements IEngine {
                     });
 
                     messagesPerFrame.clear();
-                    frameCount++;
                 }
             } catch (Exception e) {
                 log.error("execute consumer thread error: {}", e.getMessage(), e);

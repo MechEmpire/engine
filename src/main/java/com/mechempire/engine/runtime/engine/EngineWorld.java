@@ -1,13 +1,14 @@
 package com.mechempire.engine.runtime.engine;
 
+import com.google.common.collect.Maps;
 import com.mechempire.sdk.core.game.AbstractGameMapComponent;
 import com.mechempire.sdk.core.game.AbstractWorld;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * package: com.mechempire.engine.runtime
@@ -39,7 +40,7 @@ public class EngineWorld extends AbstractWorld {
      * 地图组件列表
      */
     @Getter
-    private final Map<Integer, AbstractGameMapComponent> components = new HashMap<>(16);
+    private final Map<Integer, AbstractGameMapComponent> components = Maps.newHashMap();
 
     EngineWorld() {
 //        try {
@@ -91,7 +92,7 @@ public class EngineWorld extends AbstractWorld {
      */
     void putComponent(int componentId, AbstractGameMapComponent component) {
 
-        if (null == component || components.containsKey(componentId)) {
+        if (Objects.isNull(component) || components.containsKey(componentId)) {
             return;
         }
 

@@ -6,12 +6,14 @@ import com.mechempire.engine.runtime.engine.EngineWorld;
 import com.mechempire.sdk.core.game.AbstractMech;
 import com.mechempire.sdk.core.game.AbstractPosition;
 import com.mechempire.sdk.core.game.AbstractVehicle;
-import com.mechempire.sdk.math.PositionCal;
 import com.mechempire.sdk.runtime.CommandMessage;
 
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
+import static com.mechempire.sdk.math.PositionCal.getComponentNextFrame2DPosition;
 
 /**
  * package: com.mechempire.engine.runtime
@@ -68,14 +70,15 @@ public class OneMechBattleControl implements IBattleControl {
      */
     private void handleMoveToCommand(CommandMessageReader reader) {
         AbstractVehicle vehicle = (AbstractVehicle) engineWorld.getComponent(reader.readInt());
-        if (null != vehicle) {
-            AbstractMech mech = vehicle.getMech();
-            double toX = reader.readDouble();
-            double toY = reader.readDouble();
-            double fromX = vehicle.getPosition().getX();
-            double fromY = vehicle.getPosition().getY();
-            AbstractPosition newPosition = PositionCal.getComponentNextFrame2DPosition(fromX, fromY, toX, toY, mech.getVehicle().getSpeed());
-            mech.updatePosition(newPosition);
+        if (Objects.isNull(vehicle)) {
+            return;
         }
+        AbstractMech mech = vehicle.getMech();
+        double toX = reader.readDouble();
+        double toY = reader.readDouble();
+        double fromX = vehicle.getPosition().getX();
+        double fromY = vehicle.getPosition().getY();
+        AbstractPosition newPosition = getComponentNextFrame2DPosition(fromX, fromY, toX, toY, mech.getVehicle().getSpeed());
+        mech.updatePosition(newPosition);
     }
 }

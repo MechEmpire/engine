@@ -1,9 +1,8 @@
 package com.mechempire.engine.runtime.engine;
 
-import com.mechempire.engine.runtime.engine.Engine;
+import com.google.common.collect.Maps;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * package: com.mechempire.engine.runtime
@@ -18,7 +17,7 @@ public class EngineManager {
     /**
      * 存储对战引擎
      */
-    private static Map<Integer, Engine> engineTable = new ConcurrentHashMap<>(16);
+    private static final Map<Integer, Engine> engineTable = Maps.newConcurrentMap();
 
     /**
      * 添加引擎
