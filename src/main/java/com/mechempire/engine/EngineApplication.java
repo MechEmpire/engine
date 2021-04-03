@@ -23,15 +23,12 @@ public class EngineApplication {
         AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
         ctx.scan("com.mechempire");
         ctx.refresh();
-
-        new Thread(() -> {
-            try {
-                ctx.getBean(MechEmpireServer.class).run();
-                log.info("game server is running ...");
-            } catch (Exception e) {
-                log.error("game server run error: {}", e.getMessage(), e);
-            }
-        }).start();
+        try {
+            ctx.getBean(MechEmpireServer.class).run();
+            log.info("game server is running ...");
+        } catch (Exception e) {
+            log.error("game server run error: {}", e.getMessage(), e);
+        }
         ctx.close();
     }
 }

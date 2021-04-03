@@ -48,9 +48,6 @@ public class MechEmpireServer implements IServer {
     @Resource
     private GameServerHandler gameServerHandler;
 
-    @Resource
-    private NettyTCPSessionBuilder nettyTCPSessionBuilder;
-
     @Override
     public void run() throws InterruptedException {
         try {

@@ -22,7 +22,7 @@
             <scope>system</scope>
             <systemPath>${project.basedir}/src/main/resources/lib/libtiled-1.2.3-SNAPSHOT.jar</systemPath>
         </dependency>
-        
+
         <dependency>
             <groupId>com.mechempire</groupId>
             <artifactId>sdk</artifactId>

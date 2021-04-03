@@ -1,10 +1,12 @@
 package com.mechempire.engine.network.handles;
 
+import com.google.protobuf.Any;
 import com.mechempire.engine.network.session.NettyTCPSession;
 import com.mechempire.engine.network.session.SessionManager;
 import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
-import com.mechempire.engine.runtime.engine.EngineManager;
 import com.mechempire.engine.runtime.engine.Engine;
+import com.mechempire.engine.runtime.engine.EnginePool;
+import com.mechempire.engine.runtime.engine.EngineWorld;
 import com.mechempire.sdk.proto.CommonDataProto;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -15,6 +17,9 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.io.IOException;
+import java.util.Objects;
+
+import static com.mechempire.sdk.util.SafeSetUtil.safeSet;
 
 /**
  * package: com.mechempire.engine.server.handles
@@ -33,7 +38,16 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     @Resource
     private NettyTCPSessionBuilder nettyTCPSessionBuilder;
 
-    private CommonDataProto.CommonData.Builder builder = CommonDataProto.CommonData.newBuilder();
+    /**
+     * engine pool
+     */
+    @Resource
+    private EnginePool enginePool;
+
+    /**
+     * data builder
+     */
+    private final CommonDataProto.CommonData.Builder builder = CommonDataProto.CommonData.newBuilder();
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -46,34 +60,69 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         CommonDataProto.CommonData req = (CommonDataProto.CommonData) msg;
         log.info("server receiver: " + req.getMessage());
-        builder = CommonDataProto.CommonData.newBuilder();
-        NettyTCPSession session = null;
+        NettyTCPSession session;
+        builder.clear();
 
-        switch (req.getMessage()) {
-            case "ping":
+        switch (req.getCommand()) {
+            case PING:
+                builder.setCommand(CommonDataProto.CommandEnum.PING);
                 builder.setMessage("pong");
                 break;
-            case "init":
-                Engine engine = new Engine();
+            case INIT:
+                // todo 修改成从引擎池获取
+                Engine engine = enginePool.getIdleEngine();
+//                Engine engine = new Engine();
+                log.info("engine: {}", engine);
                 engine.setAgentRedName("agent_red.jar");
                 engine.setAgentBlueName("agent_blue.jar");
-                engine.init();
+                engine.recycle();
 
                 CommonDataProto.InitRequest initRequest =
                         req.getData().unpack(CommonDataProto.InitRequest.class);
+                // 地图大小
                 double windowSize = initRequest.getScreenHeight() >= 900 ? 1280 : 640;
-                engine.getEngineWorld().setWindowHeight(windowSize);
-                engine.getEngineWorld().setWindowWidth(windowSize);
+                EngineWorld engineWorld = engine.getEngineWorld();
+                engineWorld.setWindowWidth(windowSize);
+                engineWorld.setWindowLength(windowSize);
+
+                // 设置 session
                 session = (NettyTCPSession) nettyTCPSessionBuilder.buildSession(ctx.channel());
                 SessionManager.addSession(ctx.channel().id(), session);
                 engine.addWatchSession(session);
                 session.setEngine(engine);
-                EngineManager.addEngine(engine);
+
+                // 回执消息
+                CommonDataProto.EngineWorld.Builder engineWorldBuilder = CommonDataProto.EngineWorld.newBuilder();
+                safeSet(engineWorld.getWindowLength(), engineWorldBuilder::setWindowLength);
+                safeSet(engineWorld.getWindowWidth(), engineWorldBuilder::setWindowWidth);
+                safeSet(engineWorld.getMapName(), engineWorldBuilder::setMapName);
+
+                engineWorld.getComponents().forEach((key, component) -> {
+                    CommonDataProto.MapComponent.Builder mapComponentBuilder = CommonDataProto.MapComponent.newBuilder();
+                    safeSet(component.getId(), mapComponentBuilder::setId);
+                    safeSet(component.getName(), mapComponentBuilder::setName);
+                    safeSet(component.getType(), mapComponentBuilder::setType);
+                    safeSet(component.getAffinity(), mapComponentBuilder::setAffinity);
+                    safeSet(component.getStartX(), mapComponentBuilder::setStartX);
+                    safeSet(component.getStartY(), mapComponentBuilder::setStartY);
+                    safeSet(component.getLength(), mapComponentBuilder::setLength);
+                    safeSet(component.getWidth(), mapComponentBuilder::setWidth);
+                    safeSet(CommonDataProto.Position2D.newBuilder()
+                            .setX(component.getPosition().getX())
+                            .setY(component.getPosition().getY())
+                            .build(), mapComponentBuilder::setPosition
+                    );
+                    engineWorldBuilder.putComponents(key, mapComponentBuilder.build());
+                });
+                builder.setData(Any.pack(engineWorldBuilder.build()));
+                builder.setCommand(CommonDataProto.CommandEnum.INIT);
                 builder.setMessage("init");
                 break;
-            case "start":
+            case START:
                 session = (NettyTCPSession) SessionManager.getSession(ctx.channel().id());
                 session.getEngine().run();
+                log.info("send started.");
+                builder.setCommand(CommonDataProto.CommandEnum.START);
                 builder.setMessage("started");
                 break;
             default:
@@ -82,7 +131,6 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
         }
 
         ctx.writeAndFlush(builder.build());
-        builder.clear();
     }
 
     @Override
@@ -125,9 +173,8 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
     private void closeAndClear(ChannelHandlerContext ctx) throws Exception {
         NettyTCPSession session = (NettyTCPSession) SessionManager.getSession(ctx.channel().id());
 
-        if (null != session) {
-            session.getEngine().close();
-            EngineManager.removeEngine(session.getEngine().getId());
+        if (Objects.nonNull(session)) {
+            enginePool.releaseEngine(session.getEngine());
             SessionManager.removeBySessionId(ctx.channel().id());
         }
 

@@ -1,6 +1,7 @@
 package com.mechempire.engine.runtime.engine;
 
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.Any;
 import com.mechempire.engine.constant.EngineStatus;
 import com.mechempire.engine.core.IBattleControl;
@@ -28,9 +29,8 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import sun.misc.Unsafe;
 
+import javax.annotation.Resource;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -56,6 +56,7 @@ public class Engine implements IEngine {
      * 引擎状态
      */
     @Getter
+    @Setter
     private EngineStatus status;
 
     private long idleStartTime;
@@ -107,12 +108,12 @@ public class Engine implements IEngine {
     /**
      * unsafe, 用于修改引擎状态值
      */
-    private static final Unsafe unsafe = UnsafeUtil.unsafe;
+    private static final Unsafe UNSAFE = UnsafeUtil.unsafe;
 
     /**
      * statusOffset
      */
-    private static final long statusOffset = UnsafeUtil.getFieldOffset(Engine.class, "status");
+    private static final long STATUS_OFFSET = UnsafeUtil.getFieldOffset(Engine.class, "status");
 
     /**
      * 世界, 对战运行时数据记录
@@ -128,7 +129,7 @@ public class Engine implements IEngine {
     /**
      * 监听 sessions
      */
-    private final List<NettySession> watchSessions = new LinkedList<>();
+    private final List<NettySession> watchSessions = Lists.newLinkedList();
 
     /**
      * 用户 jar 包中的 team 类名
@@ -143,16 +144,26 @@ public class Engine implements IEngine {
     /**
      * 线程池
      */
-    private final ExecutorService threadPool =
-            new ThreadPoolExecutor(
-                    3, 3, 0L, TimeUnit.MILLISECONDS,
-                    new LinkedBlockingQueue<Runnable>(4)
-            );
+    @Resource
+    private final ExecutorService threadPool = new ThreadPoolExecutor(
+            3, 3, 0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<Runnable>(1),
+            new ThreadFactoryBuilder().setNameFormat("mechempire-engine-thread-%d").build()
+    );
+
+    private List<Future<?>> futureList;
 
     @Override
     public void init() throws Exception {
-        this.id = EngineIdFactory.getId();
-        this.status = EngineStatus.CREATED;
+        id = EngineIdFactory.getId();
+        status = EngineStatus.CLOSED;
+        futureList = Lists.newArrayList();
+    }
+
+    @Override
+    public void recycle() throws Exception {
+        barrier.reset();
+        futureList.clear();
         redCommandMessageProducer = new LocalCommandMessageProducer();
         blueCommandMessageProducer = new LocalCommandMessageProducer();
         engineWorld = new EngineWorld();
@@ -164,24 +175,24 @@ public class Engine implements IEngine {
     @Override
     public void run() throws Exception {
         this.status = EngineStatus.OCCUPIED;
-        new Thread(() -> {
-            try {
-                commandMessageConsumer.setQueue(commandMessageQueue);
-                executeConsumerThread(commandMessageConsumer);
-                barrier.await();
-            } catch (Exception e) {
-                log.error("engine run error: {}", e.getMessage(), e);
-            }
-        }).start();
+        try {
+            commandMessageConsumer.setQueue(commandMessageQueue);
+            executeConsumerThread(commandMessageConsumer);
+            barrier.await();
+        } catch (Exception e) {
+            log.error("engine run error: {}", e.getMessage(), e);
+        }
     }
 
     @Override
     public void close() throws Exception {
+        log.info("engine: {} has been closed.", id);
+        status = EngineStatus.CLOSED;
         engineWorld = null;
         redCommandMessageProducer = null;
         blueCommandMessageProducer = null;
         battleControl = null;
-        this.status = EngineStatus.CLOSED;
+        futureList.forEach(future -> future.cancel(true));
     }
 
     @Override
@@ -201,12 +212,12 @@ public class Engine implements IEngine {
 
     @Override
     public boolean switchIdle() {
-        return unsafe.compareAndSwapObject(this, statusOffset, status, EngineStatus.IDLE) && flushIdleStartTime();
+        return UNSAFE.compareAndSwapObject(this, STATUS_OFFSET, status, EngineStatus.IDLE) && flushIdleStartTime();
     }
 
     @Override
     public boolean switchOccupied() {
-        return unsafe.compareAndSwapObject(this, statusOffset, status, EngineStatus.OCCUPIED) && flushUsageCount();
+        return UNSAFE.compareAndSwapObject(this, STATUS_OFFSET, status, EngineStatus.OCCUPIED) && flushUsageCount();
     }
 
     public boolean flushIdleStartTime() {
@@ -250,14 +261,14 @@ public class Engine implements IEngine {
 
         IMechControlFlow controlFlow = this.getTeamControl(agentName);
         assert null != controlFlow;
-        threadPool.execute(() -> {
+        futureList.add(threadPool.submit(() -> {
             try {
                 barrier.await();
                 controlFlow.run(commandMessageProducer, team);
             } catch (InterruptedException | BrokenBarrierException e) {
                 log.error("run control flow error: {}", e.getMessage(), e);
             }
-        });
+        }));
     }
 
     /**
@@ -378,25 +389,24 @@ public class Engine implements IEngine {
      * @param commandMessageConsumer 消费者
      */
     private void executeConsumerThread(IConsumer commandMessageConsumer) {
-        threadPool.execute(() -> {
+        futureList.add(threadPool.submit(() -> {
             try {
                 barrier.await();
-                List<CommandMessage> messagesPerFrame = new ArrayList<>(40);
+                List<CommandMessage> messagesPerFrame = Lists.newArrayListWithCapacity(40);
                 long startTime = System.currentTimeMillis();
+
+                CommonDataProto.ResultMessageList.ResultMessage.Builder resultMessageBuilder =
+                        CommonDataProto.ResultMessageList.ResultMessage.newBuilder();
 
                 CommonDataProto.ResultMessageList.Builder resultMessageListBuilder =
                         CommonDataProto.ResultMessageList.newBuilder();
 
-                CommonDataProto.ResultMessage.Builder resultMessageBuilder =
-                        CommonDataProto.ResultMessage.newBuilder();
-
-                CommonDataProto.CommonData.Builder commonDataBuilder =
-                        CommonDataProto.CommonData.newBuilder();
+                CommonDataProto.CommonData.Builder commonDataBuilder = CommonDataProto.CommonData.newBuilder();
 
                 // todo 修改为定时器
                 while (this.status == EngineStatus.OCCUPIED) {
                     CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
-                    if (Objects.nonNull(commandMessage)) {
+                    if (Objects.nonNull(commandMessage) && Objects.nonNull(commandMessage.getByteSeq()) && commandMessage.getByteSeq().length > 0) {
                         messagesPerFrame.add(commandMessage);
                     }
 
@@ -405,10 +415,18 @@ public class Engine implements IEngine {
                     if (0 != (now - startTime) % RuntimeConstant.FRAME_GAP) {
                         continue;
                     }
-                    battleControl.battle(messagesPerFrame);
-                    resultMessageListBuilder.clear();
 
-                    engineWorld.getComponents().forEach((k, v) -> {
+                    if (Objects.isNull(this.battleControl)) {
+                        continue;
+                    }
+
+                    this.battleControl.battle(messagesPerFrame);
+
+                    resultMessageListBuilder.clear();
+                    if (Objects.isNull(this.engineWorld)) {
+                        continue;
+                    }
+                    this.engineWorld.getComponents().forEach((k, v) -> {
                         AbstractPosition position = v.getPosition();
                         resultMessageBuilder.clear();
                         resultMessageBuilder.setComponentId(v.getId())
@@ -419,11 +437,11 @@ public class Engine implements IEngine {
 
                     commonDataBuilder.clear();
                     commonDataBuilder.setData(Any.pack(resultMessageListBuilder.build()));
-                    commonDataBuilder.setMessage("battle_result_message");
+                    commonDataBuilder.setMessage("running");
+                    commonDataBuilder.setCommand(CommonDataProto.CommandEnum.RUNNING);
 
                     watchSessions.forEach((s) -> {
                         s.getChannel().writeAndFlush(commonDataBuilder.build());
-                        commonDataBuilder.clear();
                     });
 
                     messagesPerFrame.clear();
@@ -431,6 +449,6 @@ public class Engine implements IEngine {
             } catch (Exception e) {
                 log.error("execute consumer thread error: {}", e.getMessage(), e);
             }
-        });
+        }));
     }
 }

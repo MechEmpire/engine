@@ -35,9 +35,9 @@ public class OneMechBattleControl implements IBattleControl {
     /**
      * 世界对象
      */
-    private EngineWorld engineWorld;
+    private final EngineWorld engineWorld;
 
-    private CommandMessageReader commandMessageReader;
+    private final CommandMessageReader commandMessageReader;
 
     public OneMechBattleControl(EngineWorld engineWorld, CommandMessageReader commandMessageReader) {
         this.engineWorld = engineWorld;
@@ -54,6 +54,9 @@ public class OneMechBattleControl implements IBattleControl {
         // 一次调用一帧
         for (CommandMessage commandMessage : commandMessageList) {
             byte[] command = commandMessage.getByteSeq();
+            if (Objects.isNull(command) || command.length <= 0) {
+                continue;
+            }
             commandMessageReader.setCommandSeq(command);
             commandMessageReader.reset();
             byte commandByte = commandMessageReader.readByte();

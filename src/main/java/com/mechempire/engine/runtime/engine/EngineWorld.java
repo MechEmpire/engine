@@ -17,24 +17,30 @@ import java.util.Objects;
  * @date 2020/12/15 下午4:29
  * <p>
  * 世界静态信息存储
+ * 与客户端信息保持一致
  */
 @Slf4j
 public class EngineWorld extends AbstractWorld {
 
+    /**
+     * 宽
+     */
     @Getter
     @Setter
-    private double windowWidth = 0;
+    private double windowWidth = 0.0;
 
+    /**
+     * 长
+     */
     @Getter
     @Setter
-    private double windowHeight = 0;
+    private double windowLength = 0.0;
 
     /**
      * map 名称
      */
     @Getter
     private final String mapName = "map_v1.tmx";
-
 
     /**
      * 地图组件列表
