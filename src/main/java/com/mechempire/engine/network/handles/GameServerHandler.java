@@ -7,11 +7,14 @@ import com.mechempire.engine.network.session.builder.NettyTCPSessionBuilder;
 import com.mechempire.engine.runtime.engine.Engine;
 import com.mechempire.engine.runtime.engine.EnginePool;
 import com.mechempire.engine.runtime.engine.EngineWorld;
+import com.mechempire.sdk.core.game.AbstractGameMap;
 import com.mechempire.sdk.proto.CommonDataProto;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import javafx.scene.shape.Ellipse;
+import javafx.scene.shape.Rectangle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -65,15 +68,14 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
 
         switch (req.getCommand()) {
             case PING:
-                builder.setCommand(CommonDataProto.CommandEnum.PING);
+                builder.setCommand(CommonDataProto.CommonData.CommandEnum.PING);
                 builder.setMessage("pong");
                 break;
             case INIT:
                 // todo 修改成从引擎池获取
                 Engine engine = enginePool.getIdleEngine();
-//                Engine engine = new Engine();
                 log.info("engine: {}", engine);
-                engine.setAgentRedName("agent_red.jar");
+                engine.setAgentRedName("agent_blue.jar");
                 engine.setAgentBlueName("agent_blue.jar");
                 engine.recycle();
 
@@ -95,34 +97,51 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
                 CommonDataProto.EngineWorld.Builder engineWorldBuilder = CommonDataProto.EngineWorld.newBuilder();
                 safeSet(engineWorld.getWindowLength(), engineWorldBuilder::setWindowLength);
                 safeSet(engineWorld.getWindowWidth(), engineWorldBuilder::setWindowWidth);
-                safeSet(engineWorld.getMapName(), engineWorldBuilder::setMapName);
+                // set gameMap
+                CommonDataProto.GameMap.Builder gameMapBuilder = CommonDataProto.GameMap.newBuilder();
+                AbstractGameMap gameMap = engineWorld.getGameMap();
+                safeSet(gameMap.getId(), gameMapBuilder::setId);
+                safeSet(gameMap.getWidth(), gameMapBuilder::setWidth);
+                safeSet(gameMap.getLength(), gameMapBuilder::setLength);
+                safeSet(gameMap.getGridLength(), gameMapBuilder::setGridLength);
+                safeSet(gameMap.getGridWidth(), gameMapBuilder::setGridWidth);
+                safeSet(gameMap.getName(), gameMapBuilder::setMapName);
 
-                engineWorld.getComponents().forEach((key, component) -> {
+                gameMap.getComponents().forEach((key, component) -> {
                     CommonDataProto.MapComponent.Builder mapComponentBuilder = CommonDataProto.MapComponent.newBuilder();
                     safeSet(component.getId(), mapComponentBuilder::setId);
                     safeSet(component.getName(), mapComponentBuilder::setName);
-                    safeSet(component.getType(), mapComponentBuilder::setType);
+                    safeSet(component.getType().getCode(), mapComponentBuilder::setType);
                     safeSet(component.getAffinity(), mapComponentBuilder::setAffinity);
                     safeSet(component.getStartX(), mapComponentBuilder::setStartX);
                     safeSet(component.getStartY(), mapComponentBuilder::setStartY);
                     safeSet(component.getLength(), mapComponentBuilder::setLength);
                     safeSet(component.getWidth(), mapComponentBuilder::setWidth);
-                    safeSet(CommonDataProto.Position2D.newBuilder()
-                            .setX(component.getPosition().getX())
-                            .setY(component.getPosition().getY())
-                            .build(), mapComponentBuilder::setPosition
-                    );
-                    engineWorldBuilder.putComponents(key, mapComponentBuilder.build());
+                    // todo shape 这里还需要在完善
+                    if (component.getShape() instanceof Rectangle) {
+                        mapComponentBuilder.setShape(CommonDataProto.MapComponent.ComponentShape.RECTANGLE2D);
+                    } else if (component.getShape() instanceof Ellipse) {
+                        mapComponentBuilder.setShape(CommonDataProto.MapComponent.ComponentShape.ELLIPSE2D);
+                    }
+                    if (Objects.nonNull(component.getPosition())) {
+                        safeSet(CommonDataProto.Position2D.newBuilder()
+                                .setX(component.getPosition().getX())
+                                .setY(component.getPosition().getY())
+                                .build(), mapComponentBuilder::setPosition
+                        );
+                    }
+                    gameMapBuilder.putComponents(key, mapComponentBuilder.build());
                 });
+                engineWorldBuilder.setGameMap(gameMapBuilder.build());
                 builder.setData(Any.pack(engineWorldBuilder.build()));
-                builder.setCommand(CommonDataProto.CommandEnum.INIT);
+                builder.setCommand(CommonDataProto.CommonData.CommandEnum.INIT);
                 builder.setMessage("init");
                 break;
             case START:
                 session = (NettyTCPSession) SessionManager.getSession(ctx.channel().id());
                 session.getEngine().run();
                 log.info("send started.");
-                builder.setCommand(CommonDataProto.CommandEnum.START);
+                builder.setCommand(CommonDataProto.CommonData.CommandEnum.START);
                 builder.setMessage("started");
                 break;
             default:

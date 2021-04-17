@@ -4,7 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -39,34 +42,58 @@ public class EnginePool {
     /**
      * 引擎池
      */
-    private final Engine[] pool;
+    private Engine[] pool;
 
     /**
      * 工作池，存放正在运行的引擎
      */
-    private final LinkedBlockingQueue<Engine> workQueue;
+    private LinkedBlockingQueue<Engine> workQueue;
 
     /**
      * 空闲池，存放空闲的引擎
      */
-    private final LinkedBlockingDeque<Engine> idleQueue;
+    private LinkedBlockingDeque<Engine> idleQueue;
 
     /**
      * 回收池，已经被回收的引擎
      */
-    private final LinkedBlockingQueue<Engine> freezeQueue;
+    private LinkedBlockingQueue<Engine> freezeQueue;
+
+    @Resource
+    private ExecutorService threadPool;
 
     /**
      * 初始化函数
      */
-    public EnginePool() {
+//    public EnginePool() {
+//        this.pool = new Engine[this.engineCount];
+//        this.workQueue = new LinkedBlockingQueue<>();
+//        this.idleQueue = new LinkedBlockingDeque<>();
+//        this.freezeQueue = new LinkedBlockingQueue<>();
+//        try {
+//            for (int i = 0; i < this.engineCount; i++) {
+//                Engine engine = new Engine(threadPool);
+//                engine.init();
+//                this.pool[i] = engine;
+//                this.idleQueue.add(engine);
+//            }
+//        } catch (Exception e) {
+//            log.error("init engine pool error: {}", e.getMessage(), e);
+//        }
+//    }
+
+    /**
+     * init
+     */
+    @PostConstruct
+    public void init() {
         this.pool = new Engine[this.engineCount];
         this.workQueue = new LinkedBlockingQueue<>();
         this.idleQueue = new LinkedBlockingDeque<>();
         this.freezeQueue = new LinkedBlockingQueue<>();
         try {
             for (int i = 0; i < this.engineCount; i++) {
-                Engine engine = new Engine();
+                Engine engine = new Engine(threadPool);
                 engine.init();
                 this.pool[i] = engine;
                 this.idleQueue.add(engine);

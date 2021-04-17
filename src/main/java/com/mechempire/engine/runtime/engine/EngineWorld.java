@@ -1,14 +1,27 @@
 package com.mechempire.engine.runtime.engine;
 
-import com.google.common.collect.Maps;
+import com.mechempire.sdk.constant.MapComponentConstant;
+import com.mechempire.sdk.core.component.DefaultBaseCamp;
+import com.mechempire.sdk.core.component.DefaultObstacle;
+import com.mechempire.sdk.core.component.DefaultRoad;
 import com.mechempire.sdk.core.game.AbstractGameMapComponent;
 import com.mechempire.sdk.core.game.AbstractWorld;
-import lombok.Getter;
-import lombok.Setter;
+import com.mechempire.sdk.runtime.GameMap;
+import javafx.scene.shape.Ellipse;
 import lombok.extern.slf4j.Slf4j;
+import org.mapeditor.core.MapLayer;
+import org.mapeditor.core.MapObject;
+import org.mapeditor.core.ObjectGroup;
+import org.mapeditor.io.TMXMapReader;
 
-import java.util.Map;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Rectangle2D;
+import java.net.URL;
+import java.util.List;
 import java.util.Objects;
+
+import static com.mechempire.sdk.core.factory.GameMapComponentFactory.createComponent;
+import static java.lang.Short.parseShort;
 
 /**
  * package: com.mechempire.engine.runtime
@@ -22,71 +35,63 @@ import java.util.Objects;
 @Slf4j
 public class EngineWorld extends AbstractWorld {
 
-    /**
-     * 宽
-     */
-    @Getter
-    @Setter
-    private double windowWidth = 0.0;
-
-    /**
-     * 长
-     */
-    @Getter
-    @Setter
-    private double windowLength = 0.0;
-
-    /**
-     * map 名称
-     */
-    @Getter
-    private final String mapName = "map_v1.tmx";
-
-    /**
-     * 地图组件列表
-     */
-    @Getter
-    private final Map<Integer, AbstractGameMapComponent> components = Maps.newHashMap();
-
     EngineWorld() {
-//        try {
-//            TMXMapReader mapReader = new TMXMapReader();
-//            org.mapeditor.core.Map originMap = mapReader.readMap(getClass().getResource("/map/map_v1.tmx").toString());
-//            MapLayer layer = null;
-//
-//            for (int i = 0; i < originMap.getLayerCount(); i++) {
-//                layer = originMap.getLayer(i);
-//
-//                if (layer instanceof ObjectGroup) {
-//                    List<MapObject> objectList = ((ObjectGroup) layer).getObjects();
-//                    for (MapObject mapObject : objectList) {
-//                        AbstractGameMapComponent gameMapComponent =
-//                                GameMapComponentFactory.getComponent(mapObject.getType(), (short) 1);
-//
-//                        if (null == gameMapComponent) {
-//                            continue;
-//                        }
-//
-////                        gameMapComponent.setShape(mapObject.getShape());
-////                        gameMapComponent.setName(mapObject.getName());
-////                        gameMapComponent.setAffinity(Short.parseShort(mapObject.getProperties().getProperties().get(0).getValue()));
-////                        gameMapComponent.setId(mapObject.getId());
-////                        gameMapComponent.setLength(CoordinateUtil.coordinateYConvert(mapObject.getHeight()));
-////                        gameMapComponent.setWidth(CoordinateUtil.coordinateXConvert(mapObject.getWidth()));
-////                        gameMapComponent.setStartX(CoordinateUtil.coordinateXConvert(mapObject.getX()));
-////                        gameMapComponent.setStartY(CoordinateUtil.coordinateYConvert(mapObject.getY()));
-////                        gameMapComponent.setType(mapObject.getType());
-//
-////                        this.putComponent(1, gameMapComponent);
-//
-////                        gameMap.addMapComponent(gameMapComponent);
-//                    }
-//                }
-//            }
-//
-//        } catch (Exception e) {
-//            log.error("init world error: {}", e.getMessage(), e);
-//        }
+        gameMap = new GameMap();
+        gameMap.setName("map_v1.tmx");
+        try {
+            TMXMapReader mapReader = new TMXMapReader();
+            URL url = getClass().getResource("/map/" + gameMap.getName());
+            if (Objects.isNull(url)) {
+                return;
+            }
+            org.mapeditor.core.Map originMap = mapReader.readMap(url.toString());
+            MapLayer layer;
+
+            for (int i = 0; i < originMap.getLayerCount(); i++) {
+                layer = originMap.getLayer(i);
+                if (!(layer instanceof ObjectGroup)) {
+                    continue;
+                }
+                List<MapObject> objectList = ((ObjectGroup) layer).getObjects();
+                for (MapObject mapObject : objectList) {
+                    AbstractGameMapComponent gameMapComponent = null;
+                    if (MapComponentConstant.COMPONENT_BASECAMP.getName().equalsIgnoreCase(mapObject.getType())) {
+                        gameMapComponent = createComponent(DefaultBaseCamp.class);
+                        gameMapComponent.setType(MapComponentConstant.COMPONENT_BASECAMP);
+                    } else if (MapComponentConstant.COMPONENT_OBSTACLE.getName().equalsIgnoreCase(mapObject.getType())) {
+                        gameMapComponent = createComponent(DefaultObstacle.class);
+                        gameMapComponent.setType(MapComponentConstant.COMPONENT_OBSTACLE);
+                    } else if (MapComponentConstant.COMPONENT_ROAD.getName().equalsIgnoreCase(mapObject.getType())) {
+                        gameMapComponent = createComponent(DefaultRoad.class);
+                        gameMapComponent.setType(MapComponentConstant.COMPONENT_ROAD);
+                    }
+
+                    if (Objects.isNull(gameMapComponent)) {
+                        continue;
+                    }
+
+                    if (mapObject.getShape() instanceof Rectangle2D) {
+                        Rectangle2D originShape = (Rectangle2D) mapObject.getShape();
+                        gameMapComponent.setShape(new javafx.scene.shape.Rectangle(originShape.getX(),
+                                originShape.getY(), originShape.getWidth(), originShape.getHeight()));
+                    } else if (mapObject.getShape() instanceof Ellipse2D) {
+                        Ellipse2D originShape = (Ellipse2D) mapObject.getShape();
+                        gameMapComponent.setShape(new Ellipse(originShape.getX(), originShape.getY(),
+                                originShape.getWidth(), originShape.getHeight()));
+                    }
+                    gameMapComponent.setName(mapObject.getName());
+                    gameMapComponent.setAffinity(parseShort(mapObject.getProperties().getProperties().get(0).getValue()));
+                    gameMapComponent.setId(mapObject.getId());
+                    gameMapComponent.setLength(mapObject.getHeight());
+                    gameMapComponent.setWidth(mapObject.getWidth());
+                    gameMapComponent.setStartX(mapObject.getX());
+                    gameMapComponent.setStartY(mapObject.getY());
+                    putComponent(gameMapComponent.getId(), gameMapComponent);
+                }
+            }
+        } catch (Exception e) {
+            log.error("init world error: {}", e.getMessage(), e);
+        }
     }
 
     /**
@@ -97,12 +102,11 @@ public class EngineWorld extends AbstractWorld {
      * @param component   组件对象
      */
     void putComponent(int componentId, AbstractGameMapComponent component) {
-
-        if (Objects.isNull(component) || components.containsKey(componentId)) {
+        if (Objects.isNull(component) || gameMap.getComponents().containsKey(componentId)) {
             return;
         }
 
-        this.components.put(componentId, component);
+        gameMap.getComponents().put(componentId, component);
     }
 
     /**
@@ -112,6 +116,6 @@ public class EngineWorld extends AbstractWorld {
      * @return 组件对象
      */
     public AbstractGameMapComponent getComponent(int componentId) {
-        return this.components.get(componentId);
+        return gameMap.getComponents().get(componentId);
     }
 }

@@ -7,6 +7,7 @@ import com.mechempire.sdk.core.game.AbstractMech;
 import com.mechempire.sdk.core.game.AbstractPosition;
 import com.mechempire.sdk.core.game.AbstractVehicle;
 import com.mechempire.sdk.runtime.CommandMessage;
+import lombok.Setter;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -35,19 +36,16 @@ public class OneMechBattleControl implements IBattleControl {
     /**
      * 世界对象
      */
-    private final EngineWorld engineWorld;
+    @Setter
+    private EngineWorld engineWorld;
 
-    private final CommandMessageReader commandMessageReader;
-
-    public OneMechBattleControl(EngineWorld engineWorld, CommandMessageReader commandMessageReader) {
-        this.engineWorld = engineWorld;
-        this.commandMessageReader = commandMessageReader;
-    }
+    @Setter
+    private CommandMessageReader commandMessageReader;
 
     @Override
     public void battle(List<CommandMessage> commandMessageList) throws Exception {
 
-        if (null == commandMessageList) {
+        if (Objects.isNull(commandMessageList)) {
             return;
         }
 

@@ -1,10 +1,7 @@
 package com.mechempire.engine.runtime.engine;
 
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.Any;
-import com.mechempire.engine.constant.EngineStatus;
-import com.mechempire.engine.core.IBattleControl;
 import com.mechempire.engine.core.IEngine;
 import com.mechempire.engine.factory.EngineIdFactory;
 import com.mechempire.engine.network.session.NettySession;
@@ -13,14 +10,14 @@ import com.mechempire.engine.runtime.CommandMessageReader;
 import com.mechempire.engine.runtime.LocalCommandMessageConsumer;
 import com.mechempire.engine.runtime.OneMechBattleControl;
 import com.mechempire.engine.util.UnsafeUtil;
-import com.mechempire.sdk.constant.RuntimeConstant;
-import com.mechempire.sdk.constant.TeamAffinity;
+import com.mechempire.sdk.constant.*;
 import com.mechempire.sdk.core.factory.PositionFactory;
 import com.mechempire.sdk.core.game.*;
 import com.mechempire.sdk.core.message.AbstractMessage;
 import com.mechempire.sdk.core.message.IConsumer;
 import com.mechempire.sdk.core.message.IProducer;
 import com.mechempire.sdk.proto.CommonDataProto;
+import com.mechempire.sdk.runtime.AgentWorld;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 import com.mechempire.sdk.util.ClassCastUtil;
@@ -29,11 +26,12 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import sun.misc.Unsafe;
 
-import javax.annotation.Resource;
 import java.net.URLClassLoader;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.*;
+
+import static com.mechempire.sdk.core.factory.GameMapComponentFactory.createComponent;
 
 /**
  * package: com.mechempire.engine.runtime
@@ -122,9 +120,16 @@ public class Engine implements IEngine {
     private EngineWorld engineWorld;
 
     /**
-     * 对战计算控制对象
+     * agent world
      */
-    private IBattleControl battleControl;
+    @Setter
+    private AgentWorld agentWorld;
+
+    /**
+     * 对战计算控制对象
+     * todo 这里需要想办法改成接口
+     */
+    private OneMechBattleControl battleControl;
 
     /**
      * 监听 sessions
@@ -143,38 +148,48 @@ public class Engine implements IEngine {
 
     /**
      * 线程池
+     * <p>
+     * todo 需要做成公共线程池
      */
-    @Resource
-    private final ExecutorService threadPool = new ThreadPoolExecutor(
-            3, 3, 0L, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<Runnable>(1),
-            new ThreadFactoryBuilder().setNameFormat("mechempire-engine-thread-%d").build()
-    );
+    private ExecutorService threadPool;
 
-    private List<Future<?>> futureList;
+    public Engine(ExecutorService threadPool) {
+        this.threadPool = threadPool;
+    }
 
     @Override
     public void init() throws Exception {
         id = EngineIdFactory.getId();
         status = EngineStatus.CLOSED;
-        futureList = Lists.newArrayList();
+        // 红方指令消费队列
+        redCommandMessageProducer = new LocalCommandMessageProducer();
+        // 蓝方指令消费队列
+        blueCommandMessageProducer = new LocalCommandMessageProducer();
+        battleControl = new OneMechBattleControl();
+        engineWorld = new EngineWorld();
+        agentWorld = new AgentWorld();
     }
 
     @Override
     public void recycle() throws Exception {
         barrier.reset();
-        futureList.clear();
-        redCommandMessageProducer = new LocalCommandMessageProducer();
-        blueCommandMessageProducer = new LocalCommandMessageProducer();
-        engineWorld = new EngineWorld();
+        redCommandMessageProducer.reset();
+        blueCommandMessageProducer.reset();
+
+        // todo 状态修改需要再设计一下
+        engineWorld.setEngineStatus(EngineStatus.CREATED);
+        agentWorld.setEngineStatus(EngineStatus.CREATED);
         injectProducerAndTeam(agentRedName, redCommandMessageProducer, TeamAffinity.RED);
         injectProducerAndTeam(agentBlueName, blueCommandMessageProducer, TeamAffinity.BLUE);
-        battleControl = new OneMechBattleControl(engineWorld, new CommandMessageReader());
+        battleControl.setEngineWorld(engineWorld);
+        battleControl.setCommandMessageReader(new CommandMessageReader());
     }
 
     @Override
     public void run() throws Exception {
-        this.status = EngineStatus.OCCUPIED;
+        status = EngineStatus.OCCUPIED;
+        engineWorld.setEngineStatus(status);
+        agentWorld.setEngineStatus(status);
         try {
             commandMessageConsumer.setQueue(commandMessageQueue);
             executeConsumerThread(commandMessageConsumer);
@@ -188,11 +203,8 @@ public class Engine implements IEngine {
     public void close() throws Exception {
         log.info("engine: {} has been closed.", id);
         status = EngineStatus.CLOSED;
-        engineWorld = null;
-        redCommandMessageProducer = null;
-        blueCommandMessageProducer = null;
-        battleControl = null;
-        futureList.forEach(future -> future.cancel(true));
+        engineWorld.setEngineStatus(EngineStatus.CLOSED);
+        agentWorld.setEngineStatus(EngineStatus.CLOSED);
     }
 
     @Override
@@ -249,7 +261,12 @@ public class Engine implements IEngine {
     private void injectProducerAndTeam(String agentName, IProducer commandMessageProducer, TeamAffinity teamAffinity) {
         commandMessageProducer.setQueue(commandMessageQueue);
         AbstractTeam team = newTeam(agentName, teamAffinity);
-        assert null != team;
+
+        if (Objects.isNull(team)) {
+            log.error("{} newTeam get null.", agentName);
+            return;
+        }
+
         // init component
         for (AbstractGameMapComponent component : team.getMechList()) {
             AbstractMech mech = ClassCastUtil.cast(component);
@@ -257,18 +274,28 @@ public class Engine implements IEngine {
             engineWorld.putComponent(mech.getAmmunition().getId(), mech.getAmmunition());
             engineWorld.putComponent(mech.getVehicle().getId(), mech.getVehicle());
             engineWorld.putComponent(mech.getWeapon().getId(), mech.getWeapon());
+            log.info("mech_id: {}", mech.getId());
         }
 
         IMechControlFlow controlFlow = this.getTeamControl(agentName);
-        assert null != controlFlow;
-        futureList.add(threadPool.submit(() -> {
+
+        if (Objects.isNull(controlFlow)) {
+            log.error("{} control flow is null.", agentName);
+            return;
+        }
+
+        log.info("add one task.");
+        threadPool.submit(() -> {
             try {
                 barrier.await();
-                controlFlow.run(commandMessageProducer, team);
+                MechRunResult result = MechRunResult.SUCCESS;
+                while (!engineWorld.getEngineStatus().equals(EngineStatus.CLOSED) && !result.equals(MechRunResult.FAILED)) {
+                    result = controlFlow.run(commandMessageProducer, team, agentWorld);
+                }
             } catch (InterruptedException | BrokenBarrierException e) {
                 log.error("run control flow error: {}", e.getMessage(), e);
             }
-        }));
+        });
     }
 
     /**
@@ -308,8 +335,9 @@ public class Engine implements IEngine {
      * @throws Exception 异常
      */
     private <M extends AbstractMech> M newMech(Class<M> mechClazz, TeamAffinity teamAffinity) throws Exception {
-        M mech = this.createComponent(mechClazz);
+        M mech = createComponent(mechClazz);
         assert mech != null;
+        mech.setType(MapComponentConstant.COMPONENT_MECH);
 
         // set start point of mech
         if (teamAffinity.equals(TeamAffinity.RED)) {
@@ -326,6 +354,7 @@ public class Engine implements IEngine {
         vehicle.setStartY(mech.getStartX());
         vehicle.setStartY(mech.getStartY());
         vehicle.setMech(mech);
+        vehicle.setType(MapComponentConstant.COMPONENT_VEHICLE);
         mech.setWidth(vehicle.getWidth());
         mech.setLength(vehicle.getLength());
         mech.setVehicle(vehicle);
@@ -334,35 +363,20 @@ public class Engine implements IEngine {
         AbstractWeapon weapon = createComponent(ClassCastUtil.cast(mech.getWeaponClazz()));
         assert weapon != null;
         weapon.setMech(mech);
+        weapon.setType(MapComponentConstant.COMPONENT_WEAPON);
         mech.setWeapon(weapon);
 
         // 装配弹药, 设置所属机甲
         AbstractAmmunition ammunition = createComponent(ClassCastUtil.cast(mech.getAmmunitionClazz()));
         assert ammunition != null;
         ammunition.setMech(mech);
+        ammunition.setType(MapComponentConstant.COMPONENT_WEAPON);
         mech.setAmmunition(ammunition);
 
         // 更新初始位置信息
         AbstractPosition position = PositionFactory.getPosition(mech);
         mech.updatePosition(position);
         return mech;
-    }
-
-    /**
-     * 生成地图组件
-     *
-     * @param componentClazz 组件类
-     * @param <T>            类
-     * @return 新组件
-     * @throws Exception 异常
-     */
-    private <T extends AbstractGameMapComponent> T createComponent(Class<T> componentClazz) throws Exception {
-        if (Objects.isNull(componentClazz)) {
-            return null;
-        }
-        T component = componentClazz.newInstance();
-        component.setId(componentCount++);
-        return component;
     }
 
     /**
@@ -389,7 +403,7 @@ public class Engine implements IEngine {
      * @param commandMessageConsumer 消费者
      */
     private void executeConsumerThread(IConsumer commandMessageConsumer) {
-        futureList.add(threadPool.submit(() -> {
+        threadPool.submit(() -> {
             try {
                 barrier.await();
                 List<CommandMessage> messagesPerFrame = Lists.newArrayListWithCapacity(40);
@@ -426,8 +440,11 @@ public class Engine implements IEngine {
                     if (Objects.isNull(this.engineWorld)) {
                         continue;
                     }
-                    this.engineWorld.getComponents().forEach((k, v) -> {
+                    this.engineWorld.getGameMap().getComponents().forEach((k, v) -> {
                         AbstractPosition position = v.getPosition();
+                        if (Objects.isNull(position)) {
+                            return;
+                        }
                         resultMessageBuilder.clear();
                         resultMessageBuilder.setComponentId(v.getId())
                                 .setPositionX(position.getX())
@@ -438,17 +455,14 @@ public class Engine implements IEngine {
                     commonDataBuilder.clear();
                     commonDataBuilder.setData(Any.pack(resultMessageListBuilder.build()));
                     commonDataBuilder.setMessage("running");
-                    commonDataBuilder.setCommand(CommonDataProto.CommandEnum.RUNNING);
+                    commonDataBuilder.setCommand(CommonDataProto.CommonData.CommandEnum.RUNNING);
 
-                    watchSessions.forEach((s) -> {
-                        s.getChannel().writeAndFlush(commonDataBuilder.build());
-                    });
-
+                    watchSessions.forEach((s) -> s.getChannel().writeAndFlush(commonDataBuilder.build()));
                     messagesPerFrame.clear();
                 }
             } catch (Exception e) {
                 log.error("execute consumer thread error: {}", e.getMessage(), e);
             }
-        }));
+        });
     }
 }

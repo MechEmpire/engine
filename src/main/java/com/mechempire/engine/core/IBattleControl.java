@@ -11,11 +11,11 @@ import java.util.List;
  * @date 2020/12/15 下午9:54
  */
 public interface IBattleControl {
-
     /**
      * 对战接口
      *
      * @param commandMessageList 指令帧列表
+     * @throws Exception 异常
      */
     void battle(List<CommandMessage> commandMessageList) throws Exception;
 }
