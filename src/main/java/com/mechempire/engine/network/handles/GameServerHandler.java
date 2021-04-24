@@ -111,13 +111,13 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
                     CommonDataProto.MapComponent.Builder mapComponentBuilder = CommonDataProto.MapComponent.newBuilder();
                     safeSet(component.getId(), mapComponentBuilder::setId);
                     safeSet(component.getName(), mapComponentBuilder::setName);
-                    safeSet(component.getType().getCode(), mapComponentBuilder::setType);
+                    safeSet(component.getMapComponent().name(), mapComponentBuilder::setType);
                     safeSet(component.getAffinity(), mapComponentBuilder::setAffinity);
                     safeSet(component.getStartX(), mapComponentBuilder::setStartX);
                     safeSet(component.getStartY(), mapComponentBuilder::setStartY);
                     safeSet(component.getLength(), mapComponentBuilder::setLength);
                     safeSet(component.getWidth(), mapComponentBuilder::setWidth);
-                    // todo shape 这里还需要在完善
+                    // todo shape 这里还需要再完善
                     if (component.getShape() instanceof Rectangle) {
                         mapComponentBuilder.setShape(CommonDataProto.MapComponent.ComponentShape.RECTANGLE2D);
                     } else if (component.getShape() instanceof Ellipse) {

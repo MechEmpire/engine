@@ -21,6 +21,7 @@ import com.mechempire.sdk.runtime.AgentWorld;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
 import com.mechempire.sdk.util.ClassCastUtil;
+import javafx.scene.shape.Rectangle;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -179,6 +180,9 @@ public class Engine implements IEngine {
         // todo 状态修改需要再设计一下
         engineWorld.setEngineStatus(EngineStatus.CREATED);
         agentWorld.setEngineStatus(EngineStatus.CREATED);
+
+        engineWorld.loadGameMap();
+
         injectProducerAndTeam(agentRedName, redCommandMessageProducer, TeamAffinity.RED);
         injectProducerAndTeam(agentBlueName, blueCommandMessageProducer, TeamAffinity.BLUE);
         battleControl.setEngineWorld(engineWorld);
@@ -274,7 +278,6 @@ public class Engine implements IEngine {
             engineWorld.putComponent(mech.getAmmunition().getId(), mech.getAmmunition());
             engineWorld.putComponent(mech.getVehicle().getId(), mech.getVehicle());
             engineWorld.putComponent(mech.getWeapon().getId(), mech.getWeapon());
-            log.info("mech_id: {}", mech.getId());
         }
 
         IMechControlFlow controlFlow = this.getTeamControl(agentName);
@@ -284,7 +287,6 @@ public class Engine implements IEngine {
             return;
         }
 
-        log.info("add one task.");
         threadPool.submit(() -> {
             try {
                 barrier.await();
@@ -337,45 +339,58 @@ public class Engine implements IEngine {
     private <M extends AbstractMech> M newMech(Class<M> mechClazz, TeamAffinity teamAffinity) throws Exception {
         M mech = createComponent(mechClazz);
         assert mech != null;
-        mech.setType(MapComponentConstant.COMPONENT_MECH);
+        mech.setMapComponent(MapComponent.DEFAULT_MECH);
+        mech.getMapComponent().setClazz(mechClazz);
+        mech.setAffinity(teamAffinity.getCode());
 
         // set start point of mech
         if (teamAffinity.equals(TeamAffinity.RED)) {
-            mech.setStartX(32.0);
-            mech.setStartY(1140.0);
+            mech.setStartX(80.0);
+            mech.setStartY(1135.0);
         } else {
-            mech.setStartX(1140.0);
-            mech.setStartY(32.0);
+            mech.setStartX(1135.0);
+            mech.setStartY(80.0);
         }
 
         // 装配载具, 设置所属机甲,大小
-        AbstractVehicle vehicle = createComponent(ClassCastUtil.cast(mech.getVehicleClazz()));
+        AbstractVehicle vehicle = createComponent(ClassCastUtil.cast(mech.getVehicleComponent().getClazz()));
         assert vehicle != null;
-        vehicle.setStartY(mech.getStartX());
+        vehicle.setStartX(mech.getStartX());
         vehicle.setStartY(mech.getStartY());
+        vehicle.setMapComponent(mech.getVehicleComponent());
         vehicle.setMech(mech);
-        vehicle.setType(MapComponentConstant.COMPONENT_VEHICLE);
+        vehicle.setShape(new Rectangle(vehicle.getStartX(), vehicle.getStartY(), vehicle.getWidth(), vehicle.getLength()));
+        vehicle.setAffinity(teamAffinity.getCode());
         mech.setWidth(vehicle.getWidth());
         mech.setLength(vehicle.getLength());
         mech.setVehicle(vehicle);
 
         // 装配武器, 设置所属机甲
-        AbstractWeapon weapon = createComponent(ClassCastUtil.cast(mech.getWeaponClazz()));
+        AbstractWeapon weapon = createComponent(ClassCastUtil.cast(mech.getWeaponComponent().getClazz()));
         assert weapon != null;
         weapon.setMech(mech);
-        weapon.setType(MapComponentConstant.COMPONENT_WEAPON);
+        weapon.setStartX(mech.getStartX());
+        weapon.setStartY(mech.getStartY());
+        weapon.setMapComponent(mech.getWeaponComponent());
+        weapon.setShape(new Rectangle(weapon.getStartX(), weapon.getStartY(), weapon.getWidth(), weapon.getLength()));
+        weapon.setAffinity(teamAffinity.getCode());
         mech.setWeapon(weapon);
 
         // 装配弹药, 设置所属机甲
-        AbstractAmmunition ammunition = createComponent(ClassCastUtil.cast(mech.getAmmunitionClazz()));
+        AbstractAmmunition ammunition = createComponent(ClassCastUtil.cast(mech.getAmmunitionComponent().getClazz()));
         assert ammunition != null;
         ammunition.setMech(mech);
-        ammunition.setType(MapComponentConstant.COMPONENT_WEAPON);
+        ammunition.setStartX(mech.getStartX());
+        ammunition.setStartY(mech.getStartY());
+        ammunition.setMapComponent(mech.getAmmunitionComponent());
+        ammunition.setShape(new Rectangle(ammunition.getStartX(), ammunition.getStartY(), ammunition.getWidth(), ammunition.getLength()));
+        ammunition.setAffinity(teamAffinity.getCode());
         mech.setAmmunition(ammunition);
 
         // 更新初始位置信息
         AbstractPosition position = PositionFactory.getPosition(mech);
         mech.updatePosition(position);
+        mech.setShape(new Rectangle(mech.getStartX(), mech.getStartY(), mech.getWidth(), mech.getLength()));
         return mech;
     }
 
@@ -440,13 +455,16 @@ public class Engine implements IEngine {
                     if (Objects.isNull(this.engineWorld)) {
                         continue;
                     }
+
+                    // 填充位置变更的组件
                     this.engineWorld.getGameMap().getComponents().forEach((k, v) -> {
                         AbstractPosition position = v.getPosition();
                         if (Objects.isNull(position)) {
                             return;
                         }
                         resultMessageBuilder.clear();
-                        resultMessageBuilder.setComponentId(v.getId())
+                        resultMessageBuilder
+                                .setComponentId(v.getId())
                                 .setPositionX(position.getX())
                                 .setPositionY(position.getY());
                         resultMessageListBuilder.addResultMessage(resultMessageBuilder.build());

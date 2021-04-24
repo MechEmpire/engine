@@ -1,13 +1,11 @@
 package com.mechempire.engine.runtime.engine;
 
-import com.mechempire.sdk.constant.MapComponentConstant;
-import com.mechempire.sdk.core.component.DefaultBaseCamp;
-import com.mechempire.sdk.core.component.DefaultObstacle;
-import com.mechempire.sdk.core.component.DefaultRoad;
+import com.mechempire.sdk.constant.MapComponent;
 import com.mechempire.sdk.core.game.AbstractGameMapComponent;
 import com.mechempire.sdk.core.game.AbstractWorld;
 import com.mechempire.sdk.runtime.GameMap;
 import javafx.scene.shape.Ellipse;
+import javafx.scene.shape.Rectangle;
 import lombok.extern.slf4j.Slf4j;
 import org.mapeditor.core.MapLayer;
 import org.mapeditor.core.MapObject;
@@ -34,8 +32,10 @@ import static java.lang.Short.parseShort;
  */
 @Slf4j
 public class EngineWorld extends AbstractWorld {
-
-    EngineWorld() {
+    /**
+     * 加载地图信息
+     */
+    void loadGameMap() {
         gameMap = new GameMap();
         gameMap.setName("map_v1.tmx");
         try {
@@ -54,25 +54,15 @@ public class EngineWorld extends AbstractWorld {
                 }
                 List<MapObject> objectList = ((ObjectGroup) layer).getObjects();
                 for (MapObject mapObject : objectList) {
-                    AbstractGameMapComponent gameMapComponent = null;
-                    if (MapComponentConstant.COMPONENT_BASECAMP.getName().equalsIgnoreCase(mapObject.getType())) {
-                        gameMapComponent = createComponent(DefaultBaseCamp.class);
-                        gameMapComponent.setType(MapComponentConstant.COMPONENT_BASECAMP);
-                    } else if (MapComponentConstant.COMPONENT_OBSTACLE.getName().equalsIgnoreCase(mapObject.getType())) {
-                        gameMapComponent = createComponent(DefaultObstacle.class);
-                        gameMapComponent.setType(MapComponentConstant.COMPONENT_OBSTACLE);
-                    } else if (MapComponentConstant.COMPONENT_ROAD.getName().equalsIgnoreCase(mapObject.getType())) {
-                        gameMapComponent = createComponent(DefaultRoad.class);
-                        gameMapComponent.setType(MapComponentConstant.COMPONENT_ROAD);
-                    }
-
+                    MapComponent mapComponent = MapComponent.valueOf(mapObject.getType());
+                    AbstractGameMapComponent gameMapComponent = createComponent(mapComponent.getClazz());
                     if (Objects.isNull(gameMapComponent)) {
                         continue;
                     }
-
+                    gameMapComponent.setMapComponent(mapComponent);
                     if (mapObject.getShape() instanceof Rectangle2D) {
                         Rectangle2D originShape = (Rectangle2D) mapObject.getShape();
-                        gameMapComponent.setShape(new javafx.scene.shape.Rectangle(originShape.getX(),
+                        gameMapComponent.setShape(new Rectangle(originShape.getX(),
                                 originShape.getY(), originShape.getWidth(), originShape.getHeight()));
                     } else if (mapObject.getShape() instanceof Ellipse2D) {
                         Ellipse2D originShape = (Ellipse2D) mapObject.getShape();
@@ -81,7 +71,6 @@ public class EngineWorld extends AbstractWorld {
                     }
                     gameMapComponent.setName(mapObject.getName());
                     gameMapComponent.setAffinity(parseShort(mapObject.getProperties().getProperties().get(0).getValue()));
-                    gameMapComponent.setId(mapObject.getId());
                     gameMapComponent.setLength(mapObject.getHeight());
                     gameMapComponent.setWidth(mapObject.getWidth());
                     gameMapComponent.setStartX(mapObject.getX());

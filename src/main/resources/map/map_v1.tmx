@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.4" tiledversion="1.4.3" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="32" tileheight="32" infinite="0" nextlayerid="19" nextobjectid="22">
+<map version="1.4" tiledversion="1.4.3" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="32" tileheight="32" infinite="0" nextlayerid="19" nextobjectid="23">
  <tileset firstgid="1" source="spring.tsx"/>
  <tileset firstgid="10" source="bunker.tsx"/>
  <imagelayer id="2" name="background">
@@ -21,25 +21,25 @@
   <image source="spring.png" width="100" height="100"/>
  </imagelayer>
  <objectgroup id="9" name="basecamp">
-  <object id="11" name="basecamp_red" type="basecamp" x="64" y="1120" width="95" height="95">
+  <object id="11" name="basecamp_red" type="DEFAULT_BASECAMP" x="64" y="1120" width="95" height="95">
    <properties>
     <property name="affinity" type="int" value="1"/>
    </properties>
   </object>
-  <object id="21" name="basecamp_blue" type="basecamp" x="1120" y="65" width="95" height="95">
+  <object id="21" name="basecamp_blue" type="DEFAULT_BASECAMP" x="1120" y="65" width="95" height="95">
    <properties>
     <property name="affinity" type="int" value="-1"/>
    </properties>
   </object>
  </objectgroup>
  <objectgroup id="10" name="bunker">
-  <object id="17" name="bunker_2" type="obstacle" x="830" y="830" width="222" height="222">
+  <object id="17" name="bunker_2" type="DEFAULT_OBSTACLE" x="830" y="830" width="222" height="222">
    <properties>
     <property name="affinity" type="int" value="0"/>
    </properties>
    <ellipse/>
   </object>
-  <object id="18" name="bunker_1" type="obstacle" x="222" y="222" width="222" height="222">
+  <object id="18" name="bunker_1" type="DEFAULT_OBSTACLE" x="222" y="222" width="222" height="222">
    <properties>
     <property name="affinity" type="int" value="0"/>
    </properties>

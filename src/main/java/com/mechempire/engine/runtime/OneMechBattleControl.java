@@ -8,6 +8,7 @@ import com.mechempire.sdk.core.game.AbstractPosition;
 import com.mechempire.sdk.core.game.AbstractVehicle;
 import com.mechempire.sdk.runtime.CommandMessage;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -24,6 +25,7 @@ import static com.mechempire.sdk.math.PositionCal.getComponentNextFrame2DPositio
  * <p>
  * 只有一个机甲的对战逻辑
  */
+@Slf4j
 public class OneMechBattleControl implements IBattleControl {
 
     /**
