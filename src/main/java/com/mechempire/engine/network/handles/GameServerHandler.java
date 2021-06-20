@@ -107,8 +107,25 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
                 safeSet(gameMap.getGridWidth(), gameMapBuilder::setGridWidth);
                 safeSet(gameMap.getName(), gameMapBuilder::setMapName);
 
+                // 填充 imageElement
+                gameMap.getImageElementList().forEach(mapImageElement -> {
+                    CommonDataProto.GameMap.ImageElement.Builder imageElementBuilder =
+                            CommonDataProto.GameMap.ImageElement.newBuilder();
+                    safeSet(mapImageElement.getSource(), imageElementBuilder::setSource);
+                    safeSet(mapImageElement.getWidth(), imageElementBuilder::setWidth);
+                    safeSet(mapImageElement.getHeight(), imageElementBuilder::setHeight);
+                    safeSet(mapImageElement.getOpacity(), imageElementBuilder::setOpacity);
+                    safeSet(mapImageElement.getOffsetX(), imageElementBuilder::setOffsetX);
+                    safeSet(mapImageElement.getOffsetY(), imageElementBuilder::setOffsetY);
+                    safeSet(CommonDataProto.GameMap.ImageElement.ElementType.valueOf(mapImageElement.getImageType().name()),
+                            imageElementBuilder::setImageType);
+                    gameMapBuilder.addMapImageElement(imageElementBuilder.build());
+                });
+
+                // 填充 components
                 gameMap.getComponents().forEach((key, component) -> {
-                    CommonDataProto.MapComponent.Builder mapComponentBuilder = CommonDataProto.MapComponent.newBuilder();
+                    CommonDataProto.GameMap.MapComponent.Builder mapComponentBuilder =
+                            CommonDataProto.GameMap.MapComponent.newBuilder();
                     safeSet(component.getId(), mapComponentBuilder::setId);
                     safeSet(component.getName(), mapComponentBuilder::setName);
                     safeSet(component.getMapComponent().name(), mapComponentBuilder::setType);
@@ -119,9 +136,9 @@ public class GameServerHandler extends ChannelInboundHandlerAdapter {
                     safeSet(component.getWidth(), mapComponentBuilder::setWidth);
                     // todo shape 这里还需要再完善
                     if (component.getShape() instanceof Rectangle) {
-                        mapComponentBuilder.setShape(CommonDataProto.MapComponent.ComponentShape.RECTANGLE2D);
+                        mapComponentBuilder.setShape(CommonDataProto.GameMap.MapComponent.ComponentShape.RECTANGLE2D);
                     } else if (component.getShape() instanceof Ellipse) {
-                        mapComponentBuilder.setShape(CommonDataProto.MapComponent.ComponentShape.ELLIPSE2D);
+                        mapComponentBuilder.setShape(CommonDataProto.GameMap.MapComponent.ComponentShape.ELLIPSE2D);
                     }
                     if (Objects.nonNull(component.getPosition())) {
                         safeSet(CommonDataProto.Position2D.newBuilder()

@@ -10,8 +10,10 @@ import com.mechempire.engine.runtime.CommandMessageReader;
 import com.mechempire.engine.runtime.LocalCommandMessageConsumer;
 import com.mechempire.engine.runtime.OneMechBattleControl;
 import com.mechempire.engine.util.UnsafeUtil;
-import com.mechempire.sdk.constant.*;
-import com.mechempire.sdk.core.factory.PositionFactory;
+import com.mechempire.sdk.constant.EngineStatus;
+import com.mechempire.sdk.constant.MapComponent;
+import com.mechempire.sdk.constant.MechRunResult;
+import com.mechempire.sdk.constant.TeamAffinity;
 import com.mechempire.sdk.core.game.*;
 import com.mechempire.sdk.core.message.AbstractMessage;
 import com.mechempire.sdk.core.message.IConsumer;
@@ -20,6 +22,7 @@ import com.mechempire.sdk.proto.CommonDataProto;
 import com.mechempire.sdk.runtime.AgentWorld;
 import com.mechempire.sdk.runtime.CommandMessage;
 import com.mechempire.sdk.runtime.LocalCommandMessageProducer;
+import com.mechempire.sdk.runtime.Position2D;
 import com.mechempire.sdk.util.ClassCastUtil;
 import javafx.scene.shape.Rectangle;
 import lombok.Getter;
@@ -32,6 +35,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.*;
 
+import static com.mechempire.sdk.constant.RuntimeConstant.FRAME_GAP;
 import static com.mechempire.sdk.core.factory.GameMapComponentFactory.createComponent;
 
 /**
@@ -131,6 +135,11 @@ public class Engine implements IEngine {
      * todo 这里需要想办法改成接口
      */
     private OneMechBattleControl battleControl;
+
+    /**
+     * 是否渲染
+     */
+    private volatile boolean canRender = false;
 
     /**
      * 监听 sessions
@@ -292,7 +301,9 @@ public class Engine implements IEngine {
                 barrier.await();
                 MechRunResult result = MechRunResult.SUCCESS;
                 while (!engineWorld.getEngineStatus().equals(EngineStatus.CLOSED) && !result.equals(MechRunResult.FAILED)) {
-                    result = controlFlow.run(commandMessageProducer, team, agentWorld);
+                    if (canRender) {
+                        result = controlFlow.run(commandMessageProducer, team, agentWorld);
+                    }
                 }
             } catch (InterruptedException | BrokenBarrierException e) {
                 log.error("run control flow error: {}", e.getMessage(), e);
@@ -343,15 +354,6 @@ public class Engine implements IEngine {
         mech.getMapComponent().setClazz(mechClazz);
         mech.setAffinity(teamAffinity.getCode());
 
-        // set start point of mech
-        if (teamAffinity.equals(TeamAffinity.RED)) {
-            mech.setStartX(80.0);
-            mech.setStartY(1135.0);
-        } else {
-            mech.setStartX(1135.0);
-            mech.setStartY(80.0);
-        }
-
         // 装配载具, 设置所属机甲,大小
         AbstractVehicle vehicle = createComponent(ClassCastUtil.cast(mech.getVehicleComponent().getClazz()));
         assert vehicle != null;
@@ -388,7 +390,8 @@ public class Engine implements IEngine {
         mech.setAmmunition(ammunition);
 
         // 更新初始位置信息
-        AbstractPosition position = PositionFactory.getPosition(mech);
+        AbstractPosition position = teamAffinity.equals(TeamAffinity.RED) ?
+                new Position2D(80.0, 1135.0) : new Position2D(1135.0, 80.0);
         mech.updatePosition(position);
         mech.setShape(new Rectangle(mech.getStartX(), mech.getStartY(), mech.getWidth(), mech.getLength()));
         return mech;
@@ -432,55 +435,100 @@ public class Engine implements IEngine {
 
                 CommonDataProto.CommonData.Builder commonDataBuilder = CommonDataProto.CommonData.newBuilder();
 
-                // todo 修改为定时器
-                while (this.status == EngineStatus.OCCUPIED) {
-                    CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
-                    if (Objects.nonNull(commandMessage) && Objects.nonNull(commandMessage.getByteSeq()) && commandMessage.getByteSeq().length > 0) {
-                        messagesPerFrame.add(commandMessage);
+                long lastTime = System.nanoTime();
+                int frames = 0;
+                double delta = 0;
+
+                while (status == EngineStatus.OCCUPIED) {
+                    long now = System.nanoTime();
+                    delta += (now - lastTime) / FRAME_GAP;
+                    lastTime = now;
+
+                    while (delta >= 1) {
+                        delta -= 1;
+                        canRender = true;
                     }
+                    Thread.sleep(2);
 
-                    long now = System.currentTimeMillis();
-                    // each frame
-                    if (0 != (now - startTime) % RuntimeConstant.FRAME_GAP) {
-                        continue;
-                    }
-
-                    if (Objects.isNull(this.battleControl)) {
-                        continue;
-                    }
-
-                    this.battleControl.battle(messagesPerFrame);
-
-                    resultMessageListBuilder.clear();
-                    if (Objects.isNull(this.engineWorld)) {
-                        continue;
-                    }
-
-                    // 填充位置变更的组件
-                    this.engineWorld.getGameMap().getComponents().forEach((k, v) -> {
-                        AbstractPosition position = v.getPosition();
-                        if (Objects.isNull(position)) {
-                            return;
+                    if (canRender) {
+                        CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
+                        if (Objects.nonNull(commandMessage) && Objects.nonNull(commandMessage.getByteSeq()) && commandMessage.getByteSeq().length > 0) {
+                            messagesPerFrame.add(commandMessage);
                         }
-                        resultMessageBuilder.clear();
-                        resultMessageBuilder
-                                .setComponentId(v.getId())
-                                .setPositionX(position.getX())
-                                .setPositionY(position.getY());
-                        resultMessageListBuilder.addResultMessage(resultMessageBuilder.build());
-                    });
+                        if (Objects.isNull(battleControl)) {
+                            continue;
+                        }
+                        battleControl.battle(messagesPerFrame);
+                        resultMessageListBuilder.clear();
+                        if (Objects.isNull(engineWorld)) {
+                            continue;
+                        }
+                        // 填充位置变更的组件
+                        engineWorld.getGameMap().getComponents().forEach((k, v) -> {
+                            AbstractPosition position = v.getPosition();
+                            if (Objects.isNull(position)) {
+                                return;
+                            }
+                            resultMessageBuilder.clear();
+                            resultMessageBuilder
+                                    .setComponentId(v.getId())
+                                    .setPositionX(position.getX())
+                                    .setPositionY(position.getY());
+                            resultMessageListBuilder.addResultMessage(resultMessageBuilder.build());
+                        });
 
-                    commonDataBuilder.clear();
-                    commonDataBuilder.setData(Any.pack(resultMessageListBuilder.build()));
-                    commonDataBuilder.setMessage("running");
-                    commonDataBuilder.setCommand(CommonDataProto.CommonData.CommandEnum.RUNNING);
-
-                    watchSessions.forEach((s) -> s.getChannel().writeAndFlush(commonDataBuilder.build()));
-                    messagesPerFrame.clear();
+                        commonDataBuilder.clear();
+                        commonDataBuilder.setData(Any.pack(resultMessageListBuilder.build()));
+                        commonDataBuilder.setMessage("running");
+                        commonDataBuilder.setCommand(CommonDataProto.CommonData.CommandEnum.RUNNING);
+                        watchSessions.forEach((s) -> s.getChannel().writeAndFlush(commonDataBuilder.build()));
+                        messagesPerFrame.clear();
+                        frames++;
+                    }
                 }
             } catch (Exception e) {
                 log.error("execute consumer thread error: {}", e.getMessage(), e);
             }
         });
     }
+
+//    private class RenderTask extends TimerTask {
+//
+//        @Override
+//        public void run() {
+//            CommandMessage commandMessage = (CommandMessage) commandMessageConsumer.consume();
+//            if (Objects.nonNull(commandMessage) && Objects.nonNull(commandMessage.getByteSeq()) && commandMessage.getByteSeq().length > 0) {
+//                messagesPerFrame.add(commandMessage);
+//            }
+//            if (Objects.isNull(battleControl)) {
+//                continue;
+//            }
+//            battleControl.battle(messagesPerFrame);
+//            resultMessageListBuilder.clear();
+//            if (Objects.isNull(engineWorld)) {
+//                continue;
+//            }
+//            // 填充位置变更的组件
+//            engineWorld.getGameMap().getComponents().forEach((k, v) -> {
+//                AbstractPosition position = v.getPosition();
+//                if (Objects.isNull(position)) {
+//                    return;
+//                }
+//                resultMessageBuilder.clear();
+//                resultMessageBuilder
+//                        .setComponentId(v.getId())
+//                        .setPositionX(position.getX())
+//                        .setPositionY(position.getY());
+//                resultMessageListBuilder.addResultMessage(resultMessageBuilder.build());
+//            });
+//
+//            commonDataBuilder.clear();
+//            commonDataBuilder.setData(Any.pack(resultMessageListBuilder.build()));
+//            commonDataBuilder.setMessage("running");
+//            commonDataBuilder.setCommand(CommonDataProto.CommonData.CommandEnum.RUNNING);
+//            watchSessions.forEach((s) -> s.getChannel().writeAndFlush(commonDataBuilder.build()));
+//            messagesPerFrame.clear();
+//            frames++;
+//        }
+//    }
 }
